@@ -1,6 +1,7 @@
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, cast
+from typing import Any, Literal, cast
 
 import jwt
 from jwt import PyJWKClient
