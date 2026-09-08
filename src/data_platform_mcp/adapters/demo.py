@@ -80,6 +80,17 @@ class DemoOperationsAdapter:
         ),
     }
 
+    def list_dags(self) -> list[DagInfo]:
+        return sorted(self._dags.values(), key=lambda item: item.dag_id)
+
+    def get_dag_status(self, dag_id: str) -> DagInfo:
+        try:
+            return self._dags[dag_id]
+        except KeyError as exc:
+            raise ValueError(f"Unknown DAG: {dag_id}") from exc
+
+
+class DemoLogAdapter:
     _logs = [
         SearchHit(
             source="airflow",
@@ -95,16 +106,7 @@ class DemoOperationsAdapter:
         ),
     ]
 
-    def list_dags(self) -> list[DagInfo]:
-        return sorted(self._dags.values(), key=lambda item: item.dag_id)
-
-    def get_dag_status(self, dag_id: str) -> DagInfo:
-        try:
-            return self._dags[dag_id]
-        except KeyError as exc:
-            raise ValueError(f"Unknown DAG: {dag_id}") from exc
-
-    def search_logs(self, query: str, limit: int = 10) -> list[SearchHit]:
+    def search(self, query: str, limit: int = 10) -> list[SearchHit]:
         needle = query.lower().strip()
         matches = [
             hit

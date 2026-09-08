@@ -1,4 +1,9 @@
-from data_platform_mcp.adapters.base import CatalogAdapter, OperationsAdapter, RunbookAdapter
+from data_platform_mcp.adapters.base import (
+    CatalogAdapter,
+    LogSearchAdapter,
+    OperationsAdapter,
+    RunbookAdapter,
+)
 from data_platform_mcp.models import DagInfo, SearchHit, TableInfo, TableStatistics
 
 
@@ -7,14 +12,25 @@ class DataPlatformService:
         self,
         catalog: CatalogAdapter,
         operations: OperationsAdapter,
+        logs: LogSearchAdapter,
         runbooks: RunbookAdapter,
     ):
         self.catalog = catalog
         self.operations = operations
+        self.logs = logs
         self.runbooks = runbooks
 
     def health(self) -> dict[str, str]:
-        return {"status": "ok", "service": "data-platform-mcp-server", "version": "0.1.0"}
+        return {"status": "ok", "service": "data-platform-mcp-server", "version": "0.2.0"}
+
+    def capabilities(self) -> dict[str, object]:
+        return {
+            "version": "0.2.0",
+            "catalog_sources": self.catalog.list_sources(),
+            "operations_adapter": type(self.operations).__name__,
+            "log_adapter": type(self.logs).__name__,
+            "safety": "read-only",
+        }
 
     def list_sources(self) -> list[str]:
         return self.catalog.list_sources()
@@ -41,7 +57,7 @@ class DataPlatformService:
         return self.operations.get_dag_status(dag_id)
 
     def search_etl_logs(self, query: str, limit: int = 10) -> list[SearchHit]:
-        return self.operations.search_logs(query, limit)
+        return self.logs.search(query, limit)
 
     def search_runbooks(self, query: str, limit: int = 10) -> list[SearchHit]:
         return self.runbooks.search(query, limit)

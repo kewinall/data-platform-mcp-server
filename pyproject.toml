@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-platform-mcp-server"
-version = "0.1.0"
+version = "0.2.0"
 description = "Production-oriented MCP server reference for data engineering and DataOps workflows."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -42,3 +42,4 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+asyncio_mode = "auto"

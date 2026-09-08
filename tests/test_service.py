@@ -1,5 +1,6 @@
 from data_platform_mcp.adapters.demo import (
     DemoCatalogAdapter,
+    DemoLogAdapter,
     DemoOperationsAdapter,
     DemoRunbookAdapter,
 )
@@ -10,6 +11,7 @@ def build_service() -> DataPlatformService:
     return DataPlatformService(
         catalog=DemoCatalogAdapter(),
         operations=DemoOperationsAdapter(),
+        logs=DemoLogAdapter(),
         runbooks=DemoRunbookAdapter(),
     )
 
@@ -35,3 +37,9 @@ def test_demo_explain_is_safe() -> None:
     service = build_service()
     plan = service.explain_sql("analytics", "SELECT * FROM public.orders")
     assert "DEMO PLAN" in plan
+
+
+def test_capabilities_are_read_only() -> None:
+    capabilities = build_service().capabilities()
+    assert capabilities["version"] == "0.2.0"
+    assert capabilities["safety"] == "read-only"

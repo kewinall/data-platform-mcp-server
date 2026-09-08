@@ -1,18 +1,18 @@
 # Roadmap / 開發路線
 
-## v0.1 — Foundation
+## v0.1 — Foundation ✅
 - MCP Python SDK v2
 - stdio / Streamable HTTP
 - Demo catalog + DataOps tools
 - PostgreSQL read-only catalog adapter
 - CI / security scan
 
-## v0.2 — DataOps Integration
-- Activate Airflow 3 REST adapter
-- DAG run/task details
-- OpenSearch or Loki log search
+## v0.2 — DataOps Integration ✅
+- Airflow 3 public REST API read-only adapter
+- OpenSearch ETL log search
+- Grafana Loki ETL log search
 - MCP resources and prompts
-- Integration tests with containerized dependencies
+- Protocol-level in-memory MCP integration tests
 
 ## v0.3 — Enterprise Data Platform
 - Vertica catalog adapter

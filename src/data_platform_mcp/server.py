@@ -7,7 +7,13 @@ from data_platform_mcp.factory import build_service
 
 settings = get_settings()
 service = build_service(settings)
-mcp = MCPServer("Data Platform MCP Server")
+mcp = MCPServer(
+    "Data Platform MCP Server",
+    instructions=(
+        "Read-only Data Engineering/DataOps server. Prefer discovery tools before SQL explain. "
+        "Never infer permission to mutate databases or orchestrators from these tools."
+    ),
+)
 
 
 @mcp.tool()
@@ -66,7 +72,7 @@ def get_dag_status(dag_id: str) -> dict[str, Any]:
 
 @mcp.tool()
 def search_etl_logs(query: str, limit: int = 10) -> list[dict[str, Any]]:
-    """Search synthetic/demo ETL logs. Production backends are planned for later releases."""
+    """Search the configured read-only ETL log backend."""
     safe_limit = max(1, min(limit, settings.max_rows))
     return [item.model_dump() for item in service.search_etl_logs(query, safe_limit)]
 
@@ -76,6 +82,51 @@ def search_runbooks(query: str, limit: int = 10) -> list[dict[str, Any]]:
     """Search operational runbooks and troubleshooting knowledge."""
     safe_limit = max(1, min(limit, settings.max_rows))
     return [item.model_dump() for item in service.search_runbooks(query, safe_limit)]
+
+
+@mcp.resource(
+    "platform://capabilities",
+    title="Data Platform MCP Capabilities",
+    description="Active adapters, sources, version, and safety mode.",
+    mime_type="application/json",
+)
+def platform_capabilities() -> dict[str, object]:
+    return service.capabilities()
+
+
+@mcp.resource(
+    "catalog://{source}/{schema}/{table}",
+    title="Table Catalog Entry",
+    description="Read a table's catalog metadata as an MCP resource.",
+    mime_type="application/json",
+)
+def catalog_table(source: str, schema: str, table: str) -> dict[str, Any]:
+    return service.describe_table(source, schema, table).model_dump()
+
+
+@mcp.prompt(
+    title="DataOps Incident Triage",
+    description="Guide an MCP host through read-only DAG/log/runbook incident triage.",
+)
+def incident_triage(dag_id: str, symptom: str) -> str:
+    return (
+        f"Investigate DataOps incident for DAG '{dag_id}'. Symptom: {symptom}. "
+        "Use get_dag_status first, then search_etl_logs for concrete evidence, then "
+        "search_runbooks for remediation guidance. Distinguish observed facts from "
+        "hypotheses. Do not perform write operations."
+    )
+
+
+@mcp.prompt(
+    title="Data Discovery",
+    description="Guide schema/table discovery before proposing analytics SQL.",
+)
+def data_discovery(source: str, schema: str, question: str) -> str:
+    return (
+        f"Answer this data discovery question for source '{source}', schema '{schema}': "
+        f"{question}. Use list_tables and describe_table before proposing SQL. If SQL is "
+        "needed, keep it read-only and validate it with explain_sql."
+    )
 
 
 def main() -> None:

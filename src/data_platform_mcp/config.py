@@ -8,10 +8,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="DPMCP_", extra="ignore")
 
     mode: Literal["demo", "postgres"] = "demo"
+    operations_mode: Literal["demo", "airflow"] = "demo"
+    logs_mode: Literal["demo", "opensearch", "loki"] = "demo"
+
     transport: Literal["stdio", "streamable-http"] = "stdio"
     host: str = "0.0.0.0"
     port: int = 8000
     log_level: str = "INFO"
+    max_rows: int = 100
 
     postgres_dsn: str | None = None
     postgres_statement_timeout_ms: int = 5000
@@ -20,7 +24,15 @@ class Settings(BaseSettings):
     airflow_token: str | None = None
     airflow_timeout_seconds: float = 10.0
 
-    max_rows: int = 100
+    opensearch_url: str | None = None
+    opensearch_index: str = "etl-logs-*"
+    opensearch_username: str | None = None
+    opensearch_password: str | None = None
+    opensearch_token: str | None = None
+
+    loki_url: str | None = None
+    loki_token: str | None = None
+    loki_query: str = '{job=~".+"} |= "{query}"'
 
 
 @lru_cache
