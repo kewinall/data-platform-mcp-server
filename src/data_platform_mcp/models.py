@@ -22,6 +22,36 @@ class TableStatistics(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class TableMetadata(BaseModel):
+    source: str
+    schema_name: str
+    table_name: str
+    object_type: str = "TABLE"
+    owner: str | None = None
+    remarks: str | None = None
+    columns: list[ColumnInfo] = Field(default_factory=list)
+    projections: list[str] = Field(default_factory=list)
+    attributes: dict[str, Any] = Field(default_factory=dict)
+
+
+class LineageEdge(BaseModel):
+    upstream: str
+    downstream: str
+    relation: str = "reads_from"
+
+
+class LineageResult(BaseModel):
+    subject: str
+    edges: list[LineageEdge] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class SqlLineage(BaseModel):
+    statement_type: str
+    input_tables: list[str] = Field(default_factory=list)
+    ctes: list[str] = Field(default_factory=list)
+
+
 class DagInfo(BaseModel):
     dag_id: str
     state: str

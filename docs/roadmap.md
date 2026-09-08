@@ -14,16 +14,23 @@
 - MCP resources and prompts
 - Protocol-level in-memory MCP integration tests
 
-## v0.3 — Enterprise Data Platform
-- Vertica catalog adapter
-- Metadata and lineage model
-- SQL policy upgrade with parser-based validation
-- API token/RBAC policy
-- Audit log
+## v0.3 — Enterprise Data Platform ✅
+- Official `vertica-python` catalog adapter
+- PostgreSQL + Vertica composite catalog routing
+- Table metadata and projection metadata
+- Vertica view lineage via `v_catalog.view_tables`
+- SQLGlot SQL lineage extraction
+- Parser/AST-based read-only SQL policy
+- MCP SDK bearer-token authentication
+- RBAC scopes and roles
+- Structured audit JSONL
+- CI/Security-gated tag + GitHub Release automation
 
 ## v0.4 — Production Delivery
 - Kubernetes + Helm
-- OIDC and multi-tenancy
+- OIDC / Keycloak / Entra integration
+- Multi-tenancy and tenant-aware RBAC
 - OpenTelemetry metrics/traces
 - External Secrets examples
-- Offline / air-gapped bundle
+- NetworkPolicy and Pod Security examples
+- Offline / air-gapped deployment bundle

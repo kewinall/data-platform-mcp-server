@@ -1,4 +1,13 @@
-from data_platform_mcp.models import ColumnInfo, DagInfo, SearchHit, TableInfo, TableStatistics
+from data_platform_mcp.models import (
+    ColumnInfo,
+    DagInfo,
+    LineageEdge,
+    LineageResult,
+    SearchHit,
+    TableInfo,
+    TableMetadata,
+    TableStatistics,
+)
 from data_platform_mcp.security import ensure_read_only_sql
 
 
@@ -54,6 +63,37 @@ class DemoCatalogAdapter:
             row_count=counts.get(table),
             notes=["Synthetic demo statistics; no production data is queried."],
         )
+
+    def get_table_metadata(self, source: str, schema: str, table: str) -> TableMetadata:
+        info = self.describe_table(source, schema, table)
+        return TableMetadata(
+            source=source,
+            schema_name=schema,
+            table_name=table,
+            object_type="VIEW" if table == "daily_sales" else "TABLE",
+            owner="demo_owner",
+            remarks="Synthetic metadata for portfolio demonstration.",
+            columns=info.columns,
+            projections=["daily_sales_super"] if table == "daily_sales" else [],
+            attributes={"environment": "synthetic"},
+        )
+
+    def get_table_lineage(self, source: str, schema: str, table: str) -> LineageResult:
+        self.describe_table(source, schema, table)
+        subject = f"{source}.{schema}.{table}"
+        if table == "daily_sales":
+            return LineageResult(
+                subject=subject,
+                edges=[
+                    LineageEdge(
+                        upstream="analytics.public.orders",
+                        downstream=subject,
+                        relation="reads_from",
+                    )
+                ],
+                notes=["Synthetic lineage edge for demonstration."],
+            )
+        return LineageResult(subject=subject, notes=["No synthetic upstream dependency defined."])
 
     def explain_sql(self, source: str, sql: str) -> str:
         if source not in self._tables:

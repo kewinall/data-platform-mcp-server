@@ -1,54 +1,78 @@
-# Integrations / 整合設定
+# Integrations / 整合說明
+
+## PostgreSQL
+
+```bash
+export DPMCP_MODE=postgres
+export DPMCP_POSTGRES_DSN='postgresql://readonly_user:change-me@postgres:5432/analytics'
+```
+
+The adapter reads `information_schema`, uses `pg_class.reltuples` for lightweight estimates, and runs `EXPLAIN (FORMAT TEXT)` only after SQL policy validation. Connections set `default_transaction_read_only=on`.
+
+## Vertica
+
+v0.3 uses the official `vertica-python` DB-API client.
+
+```bash
+export DPMCP_MODE=vertica
+export DPMCP_VERTICA_DSN='vertica://readonly_user:change-me@vertica:5433/warehouse?tlsmode=require'
+export DPMCP_VERTICA_SOURCE_NAME=vertica
+```
+
+Every connection executes:
+
+```sql
+SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;
+```
+
+Catalog sources:
+
+- `v_catalog.schemata`
+- `v_catalog.all_tables`
+- `v_catalog.columns`
+- `v_catalog.view_columns`
+- `v_catalog.projections`
+- `v_catalog.view_tables`
+- `v_monitor.projection_storage`
+
+The adapter does not run `COUNT(*)` for table statistics. It derives a lightweight row count from projection storage.
+
+### Multi-source mode
+
+```bash
+export DPMCP_MODE=multi
+export DPMCP_POSTGRES_DSN='postgresql://readonly_user:change-me@postgres:5432/analytics'
+export DPMCP_VERTICA_DSN='vertica://readonly_user:change-me@vertica:5433/warehouse'
+```
+
+Either DSN may be omitted in `multi` mode as long as at least one catalog backend is configured.
 
 ## Airflow 3
 
-**繁體中文**：v0.2 使用 Airflow 3 穩定公開 REST API `/api/v2`，目前只做唯讀 DAG discovery 與最新 DAG Run 狀態查詢。
-
-**English**: v0.2 uses Airflow 3's stable public REST API under `/api/v2`. The integration is read-only and currently covers DAG discovery and latest DAG-run state.
-
 ```bash
 export DPMCP_OPERATIONS_MODE=airflow
-export DPMCP_AIRFLOW_BASE_URL=https://airflow.example.internal
-export DPMCP_AIRFLOW_TOKEN=replace-me
+export DPMCP_AIRFLOW_BASE_URL='https://airflow.example.internal'
+export DPMCP_AIRFLOW_TOKEN='replace-me'
 ```
 
-Required API access:
-- `GET /api/v2/dags`
-- `GET /api/v2/dags/{dag_id}/dagRuns`
-
-Use an identity that can read only the DAG metadata required by this server.
+The adapter uses the stable public `/api/v2` API and GET operations only.
 
 ## OpenSearch
 
 ```bash
 export DPMCP_LOGS_MODE=opensearch
-export DPMCP_OPENSEARCH_URL=https://opensearch.example.internal
+export DPMCP_OPENSEARCH_URL='https://opensearch.example.internal'
 export DPMCP_OPENSEARCH_INDEX='etl-logs-*'
-export DPMCP_OPENSEARCH_USERNAME=readonly_user
-export DPMCP_OPENSEARCH_PASSWORD=replace-me
 ```
 
-The adapter sends `_search` only. Give the account index read/search permission, not write/admin privileges.
+Only `_search` is used.
 
 ## Grafana Loki
 
 ```bash
 export DPMCP_LOGS_MODE=loki
-export DPMCP_LOKI_URL=https://loki.example.internal
-export DPMCP_LOKI_TOKEN=replace-me
+export DPMCP_LOKI_URL='https://loki.example.internal'
 export DPMCP_LOKI_QUERY='{job=~".+"} |= "{query}"'
 ```
 
-The adapter calls `GET /loki/api/v1/query_range` only. `{query}` is safely escaped before substitution.
-
-## Adapter combinations
-
-Catalog, orchestration, and log search are independently configurable. Example:
-
-```bash
-DPMCP_MODE=postgres
-DPMCP_OPERATIONS_MODE=airflow
-DPMCP_LOGS_MODE=loki
-```
-
-This allows a production deployment to use PostgreSQL catalog metadata, Airflow orchestration status, and Loki logs without changing MCP tool contracts.
+Only `query_range` is used.

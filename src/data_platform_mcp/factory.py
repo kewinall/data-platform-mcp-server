@@ -1,4 +1,5 @@
 from data_platform_mcp.adapters.airflow import AirflowOperationsAdapter
+from data_platform_mcp.adapters.composite import CompositeCatalogAdapter
 from data_platform_mcp.adapters.demo import (
     DemoCatalogAdapter,
     DemoLogAdapter,
@@ -7,18 +8,47 @@ from data_platform_mcp.adapters.demo import (
 )
 from data_platform_mcp.adapters.logs import LokiLogAdapter, OpenSearchLogAdapter
 from data_platform_mcp.adapters.postgres import PostgresCatalogAdapter
+from data_platform_mcp.adapters.vertica import VerticaCatalogAdapter
 from data_platform_mcp.config import Settings
 from data_platform_mcp.service import DataPlatformService
 
 
+def _postgres(settings: Settings) -> PostgresCatalogAdapter:
+    if not settings.postgres_dsn:
+        raise ValueError("DPMCP_POSTGRES_DSN is required for the PostgreSQL catalog adapter")
+    return PostgresCatalogAdapter(
+        settings.postgres_dsn,
+        statement_timeout_ms=settings.postgres_statement_timeout_ms,
+    )
+
+
+def _vertica(settings: Settings) -> VerticaCatalogAdapter:
+    if not settings.vertica_dsn:
+        raise ValueError("DPMCP_VERTICA_DSN is required for the Vertica catalog adapter")
+    return VerticaCatalogAdapter(
+        settings.vertica_dsn,
+        source_name=settings.vertica_source_name,
+        connection_timeout=settings.vertica_connection_timeout_seconds,
+        session_label=settings.vertica_session_label,
+    )
+
+
 def build_service(settings: Settings) -> DataPlatformService:
     if settings.mode == "postgres":
-        if not settings.postgres_dsn:
-            raise ValueError("DPMCP_POSTGRES_DSN is required when DPMCP_MODE=postgres")
-        catalog = PostgresCatalogAdapter(
-            settings.postgres_dsn,
-            statement_timeout_ms=settings.postgres_statement_timeout_ms,
-        )
+        catalog = _postgres(settings)
+    elif settings.mode == "vertica":
+        catalog = _vertica(settings)
+    elif settings.mode == "multi":
+        adapters = []
+        if settings.postgres_dsn:
+            adapters.append(_postgres(settings))
+        if settings.vertica_dsn:
+            adapters.append(_vertica(settings))
+        if not adapters:
+            raise ValueError(
+                "DPMCP_MODE=multi requires DPMCP_POSTGRES_DSN and/or DPMCP_VERTICA_DSN"
+            )
+        catalog = CompositeCatalogAdapter(adapters)
     else:
         catalog = DemoCatalogAdapter()
 

@@ -3,6 +3,8 @@ import json
 import httpx
 
 from data_platform_mcp.adapters.airflow import AirflowOperationsAdapter
+from data_platform_mcp.adapters.composite import CompositeCatalogAdapter
+from data_platform_mcp.adapters.demo import DemoCatalogAdapter
 from data_platform_mcp.adapters.logs import LokiLogAdapter, OpenSearchLogAdapter
 
 
@@ -18,14 +20,8 @@ def test_airflow_lists_dags_and_latest_run() -> None:
                 200,
                 json={
                     "dag_runs": [
-                        {
-                            "state": "failed",
-                            "logical_date": "2026-09-07T01:00:00Z",
-                        },
-                        {
-                            "state": "success",
-                            "logical_date": "2026-09-08T01:00:00Z",
-                        },
+                        {"state": "failed", "logical_date": "2026-09-07T01:00:00Z"},
+                        {"state": "success", "logical_date": "2026-09-08T01:00:00Z"},
                     ]
                 },
             )
@@ -113,3 +109,9 @@ def test_loki_log_search() -> None:
     hits = adapter.search("failed", 10)
     assert hits[0].source == "loki"
     assert hits[0].snippet == "validation failed"
+
+
+def test_composite_catalog_routes_by_source() -> None:
+    composite = CompositeCatalogAdapter([DemoCatalogAdapter()])
+    assert composite.list_sources() == ["analytics"]
+    assert "orders" in composite.list_tables("analytics", "public")

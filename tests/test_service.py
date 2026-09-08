@@ -26,6 +26,21 @@ def test_catalog_flow() -> None:
     assert any(column.name == "amount" for column in table.columns)
 
 
+def test_metadata_and_lineage_flow() -> None:
+    service = build_service()
+    metadata = service.get_table_metadata("analytics", "mart", "daily_sales")
+    assert metadata.object_type == "VIEW"
+    assert metadata.owner == "demo_owner"
+    lineage = service.get_table_lineage("analytics", "mart", "daily_sales")
+    assert lineage.edges[0].upstream == "analytics.public.orders"
+
+    sql_lineage = service.analyze_sql_lineage(
+        "SELECT o.order_id FROM public.orders o JOIN public.customers c "
+        "ON c.customer_id = o.customer_id"
+    )
+    assert sql_lineage.input_tables == ["public.customers", "public.orders"]
+
+
 def test_operations_and_runbook_search() -> None:
     service = build_service()
     assert service.get_dag_status("quality_checks").state == "failed"
@@ -41,5 +56,8 @@ def test_demo_explain_is_safe() -> None:
 
 def test_capabilities_are_read_only() -> None:
     capabilities = build_service().capabilities()
-    assert capabilities["version"] == "0.2.0"
+    assert capabilities["version"] == "0.3.0"
     assert capabilities["safety"] == "read-only"
+    assert capabilities["sql_policy"] == "sqlglot-ast"
+    assert capabilities["metadata"] is True
+    assert capabilities["lineage"] is True

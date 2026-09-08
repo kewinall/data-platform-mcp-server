@@ -2,16 +2,20 @@ from contextlib import closing
 
 import psycopg
 
-from data_platform_mcp.models import ColumnInfo, TableInfo, TableStatistics
+from data_platform_mcp.lineage import analyze_sql_lineage
+from data_platform_mcp.models import (
+    ColumnInfo,
+    LineageEdge,
+    LineageResult,
+    TableInfo,
+    TableMetadata,
+    TableStatistics,
+)
 from data_platform_mcp.security import ensure_read_only_sql
 
 
 class PostgresCatalogAdapter:
-    """Read-only PostgreSQL catalog adapter.
-
-    Use a database account that has SELECT/catalog privileges only. The server also
-    enforces read-only SQL, but database-side least privilege remains mandatory.
-    """
+    """Read-only PostgreSQL catalog adapter."""
 
     def __init__(self, dsn: str, statement_timeout_ms: int = 5000):
         self.dsn = dsn
@@ -98,9 +102,58 @@ class PostgresCatalogAdapter:
             notes=["row_count is the PostgreSQL planner estimate (pg_class.reltuples)."],
         )
 
+    def get_table_metadata(self, source: str, schema: str, table: str) -> TableMetadata:
+        self._require_source(source)
+        info = self.describe_table(source, schema, table)
+        sql = """
+            SELECT table_type
+            FROM information_schema.tables
+            WHERE table_schema = %s AND table_name = %s
+        """
+        with closing(self._connect()) as conn, conn.cursor() as cur:
+            cur.execute(sql, (schema, table))
+            row = cur.fetchone()
+        return TableMetadata(
+            source=source,
+            schema_name=schema,
+            table_name=table,
+            object_type=row[0] if row else "UNKNOWN",
+            columns=info.columns,
+            attributes={"adapter": "postgres"},
+        )
+
+    def get_table_lineage(self, source: str, schema: str, table: str) -> LineageResult:
+        self._require_source(source)
+        self.describe_table(source, schema, table)
+        sql = """
+            SELECT view_definition
+            FROM information_schema.views
+            WHERE table_schema = %s AND table_name = %s
+        """
+        with closing(self._connect()) as conn, conn.cursor() as cur:
+            cur.execute(sql, (schema, table))
+            row = cur.fetchone()
+        subject = f"{source}.{schema}.{table}"
+        if not row or not row[0]:
+            return LineageResult(
+                subject=subject,
+                notes=["Object is not a parseable PostgreSQL view."],
+            )
+        lineage = analyze_sql_lineage(row[0])
+        return LineageResult(
+            subject=subject,
+            edges=[
+                LineageEdge(upstream=f"{source}.{name}", downstream=subject)
+                for name in lineage.input_tables
+            ],
+            notes=["Derived from information_schema.views.view_definition using SQLGlot."],
+        )
+
     def explain_sql(self, source: str, sql: str) -> str:
         self._require_source(source)
         safe_sql = ensure_read_only_sql(sql)
+        if safe_sql.lower().startswith("explain "):
+            safe_sql = safe_sql.split(None, 1)[1]
         with closing(self._connect()) as conn, conn.cursor() as cur:
             cur.execute("EXPLAIN (FORMAT TEXT) " + safe_sql)
             return "\n".join(row[0] for row in cur.fetchall())

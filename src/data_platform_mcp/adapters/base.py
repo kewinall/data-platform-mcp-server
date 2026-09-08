@@ -1,6 +1,13 @@
 from typing import Protocol
 
-from data_platform_mcp.models import DagInfo, SearchHit, TableInfo, TableStatistics
+from data_platform_mcp.models import (
+    DagInfo,
+    LineageResult,
+    SearchHit,
+    TableInfo,
+    TableMetadata,
+    TableStatistics,
+)
 
 
 class CatalogAdapter(Protocol):
@@ -9,6 +16,8 @@ class CatalogAdapter(Protocol):
     def list_tables(self, source: str, schema: str) -> list[str]: ...
     def describe_table(self, source: str, schema: str, table: str) -> TableInfo: ...
     def table_statistics(self, source: str, schema: str, table: str) -> TableStatistics: ...
+    def get_table_metadata(self, source: str, schema: str, table: str) -> TableMetadata: ...
+    def get_table_lineage(self, source: str, schema: str, table: str) -> LineageResult: ...
     def explain_sql(self, source: str, sql: str) -> str: ...
 
 
