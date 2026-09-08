@@ -1,6 +1,5 @@
 import re
 
-
 _READ_ONLY_PREFIXES = ("select", "with", "explain", "show")
 _FORBIDDEN = re.compile(
     r"\b(insert|update|delete|merge|drop|alter|truncate|create|grant|revoke|copy|call|do|"
