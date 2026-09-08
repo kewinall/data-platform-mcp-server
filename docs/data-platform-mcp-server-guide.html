@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Data Platform MCP Server v0.4 - 使用者教學、企業架構與面試作品導覽">
+<title>Data Platform MCP Server v0.4｜使用指南 × 面試作品導覽</title>
+<style>
+:root{--bg:#0b1020;--panel:#151d33;--panel2:#1b2642;--text:#edf3ff;--muted:#9fb0ce;--line:#2b3a5d;--accent:#6ee7ff;--accent2:#8b7cff;--good:#61d68b;--warn:#ffcf66;--code:#08101f;--max:1180px}
+html[data-theme="light"]{--bg:#f5f7fb;--panel:#fff;--panel2:#f1f5fb;--text:#17213a;--muted:#61708b;--line:#d9e2ef;--accent:#087ea4;--accent2:#6554c0;--good:#16844d;--warn:#9a6400;--code:#f3f6fb}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% 0,rgba(110,231,255,.10),transparent 28%),radial-gradient(circle at 90% 6%,rgba(139,124,255,.10),transparent 28%),var(--bg);color:var(--text);font-family:Inter,"Noto Sans TC","Segoe UI",system-ui,sans-serif;line-height:1.68}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}code,pre{font-family:"Cascadia Code",Consolas,monospace}#progress{position:fixed;z-index:99;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0}
+header{position:sticky;top:0;z-index:90;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}.top{max-width:var(--max);margin:auto;padding:10px 20px;display:flex;gap:16px;align-items:center}.brand{font-weight:850;white-space:nowrap}.nav{flex:1;display:flex;gap:14px;overflow:auto;white-space:nowrap;font-size:14px}.nav a{color:var(--muted)}button{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:9px;padding:7px 10px;cursor:pointer}
+.wrap{max-width:var(--max);margin:auto;padding:0 20px 70px}.hero{padding:72px 0 32px;display:grid;grid-template-columns:1.2fr .8fr;gap:28px;align-items:center}.tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--accent);font-size:13px;font-weight:800}h1{font-size:clamp(40px,6vw,72px);line-height:1.03;letter-spacing:-.04em;margin:16px 0}h1 span{background:linear-gradient(100deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}.lead{font-size:19px;color:var(--muted)}.cta{display:flex;gap:9px;flex-wrap:wrap;margin:22px 0}.btn{display:inline-block;padding:10px 13px;border:1px solid var(--line);border-radius:11px;background:var(--panel);color:var(--text);font-weight:700}.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08101f;border:none}.card,.diagram{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:19px}.terminal,pre{background:var(--code);border:1px solid var(--line);border-radius:13px;padding:15px;overflow:auto}.muted{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 55px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px}.stat strong{font-size:27px;display:block}.stat span{font-size:12px;color:var(--muted)}
+section{scroll-margin-top:75px;margin:62px 0}.head{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:18px}.head h2{font-size:31px;margin:0}.head p{max-width:590px;margin:0;color:var(--muted)}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:15px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.kpi{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:var(--muted)}.good{color:var(--good)}.callout{border-left:4px solid var(--accent);background:color-mix(in srgb,var(--panel) 90%,var(--accent) 10%);padding:14px 16px;border-radius:0 12px 12px 0}.warn{border-color:var(--warn)}
+.diagram{overflow:auto}.diagram svg{display:block;min-width:760px;width:100%;height:auto}.node{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}.na{fill:color-mix(in srgb,var(--accent) 10%,var(--panel));stroke:var(--accent)}.ng{fill:color-mix(in srgb,var(--good) 10%,var(--panel));stroke:var(--good)}.st{fill:var(--text);font:600 14px system-ui}.ss{fill:var(--muted);font:12px system-ui}.arrow{stroke:var(--muted);stroke-width:2;fill:none;marker-end:url(#arr)}
+table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:13px;overflow:hidden;background:var(--panel)}th,td{padding:11px 13px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:var(--panel2);font-size:13px;color:var(--muted)}tr:last-child td{border-bottom:none}.tw{overflow:auto}.filter{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--panel);color:var(--text);margin-bottom:10px}
+.steps{display:grid;gap:11px;counter-reset:s}.step{counter-increment:s;position:relative;padding:17px 17px 17px 55px;background:var(--panel);border:1px solid var(--line);border-radius:14px}.step:before{content:counter(s);position:absolute;left:15px;top:15px;width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08101f;font-weight:900}.timeline{border-left:2px solid var(--line);padding-left:27px;margin-left:9px}.tl{position:relative;margin:0 0 22px}.tl:before{content:"";position:absolute;left:-34px;top:7px;width:11px;height:11px;border-radius:50%;background:var(--accent)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:0 15px;margin:9px 0}summary{cursor:pointer;padding:13px 0;font-weight:800}.copy{float:right;font-size:12px}.badge{display:inline-block;border:1px solid color-mix(in srgb,var(--good) 35%,var(--line));color:var(--good);background:color-mix(in srgb,var(--good) 10%,var(--panel));padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800}
+footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color:var(--muted)}
+@media(max-width:880px){.hero,.grid2,.grid3{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.nav{display:none}}@media(max-width:520px){.wrap,.top{padding-left:13px;padding-right:13px}.head{align-items:start;flex-direction:column}.lead{font-size:17px}}
+@media print{header,#progress,.copy,.cta{display:none!important}body{background:#fff;color:#111}.card,.diagram,table,details{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<header><div class="top"><div class="brand">● Data Platform MCP Server</div><nav class="nav"><a href="#interviewer">面試官速讀</a><a href="#architecture">架構</a><a href="#tools">Tools</a><a href="#security">Security</a><a href="#deploy">Kubernetes</a><a href="#quickstart">使用方式</a><a href="#cicd">CI/CD</a><a href="#interview">面試重點</a></nav><button id="theme">◐</button></div></header>
+<main class="wrap">
+<section class="hero">
+<div><span class="tag">v0.4.0 · Enterprise MCP / Data Platform</span><h1>讓 AI Agent <span>安全理解資料平台</span></h1><p class="lead">Production-oriented MCP Server 參考實作：把 PostgreSQL、Vertica、Airflow、Metadata、Lineage、Logs 與 Runbooks 轉成標準 MCP capabilities，並加入 OIDC、RBAC、Multi-tenancy、Audit、OpenTelemetry、Kubernetes / Helm 與 Air-gapped Delivery。</p><div class="cta"><a class="btn primary" href="#interviewer">5 分鐘了解專案</a><a class="btn" href="#quickstart">使用方式</a><a class="btn" href="https://github.com/kewinall/data-platform-mcp-server">GitHub ↗</a><a class="btn" href="https://github.com/kewinall/data-platform-mcp-server/releases/tag/v0.4.0">Release ↗</a></div><span class="pill">MCP SDK v2</span><span class="pill">PostgreSQL</span><span class="pill">Vertica</span><span class="pill">Airflow 3</span><span class="pill">SQLGlot</span><span class="pill">OIDC/JWT</span><span class="pill">OpenTelemetry</span><span class="pill">Kubernetes</span><span class="pill">Helm</span></div>
+<div class="card"><div class="kpi">One sentence pitch</div><h3>不是讓 LLM 直接連 DB，而是加一層「受控、可稽核、可治理」的 MCP Data Platform Gateway。</h3><pre># MCP Host asks...
+› 哪些資料表與 daily_sales 有關？
+
+# Server performs...
+✓ OIDC / Bearer validation
+✓ RBAC scope check
+✓ Tenant source boundary
+✓ Catalog + Lineage lookup
+✓ Audit + trace correlation
+
+# No destructive write tool exists</pre></div>
+</section>
+<div class="stats"><div class="stat"><strong>15</strong><span>MCP Tools</span></div><div class="stat"><strong>2</strong><span>Database Adapters</span></div><div class="stat"><strong>4</strong><span>RBAC Roles</span></div><div class="stat"><strong>v0.4</strong><span>Production Delivery milestone</span></div></div>
+
+<section id="interviewer"><div class="head"><h2>面試官 5 分鐘速讀</h2><p>先回答「為什麼值得看」，再進入實作細節。</p></div><div class="grid3">
+<div class="card"><div class="kpi">Problem</div><h3>LLM 不該直接拿 DB 權限</h3><p class="muted">直接暴露資料庫、排程器與 Logs 容易造成越權、Prompt Injection、credential expansion 與不可追蹤操作。</p></div>
+<div class="card"><div class="kpi">Architecture</div><h3>MCP 作為受控介面層</h3><p class="muted">Catalog、Metadata、Lineage、SQL Explain、Airflow 與 Log Search 被封裝成標準 MCP Tool，底層由 Adapter 隔離。</p></div>
+<div class="card"><div class="kpi">Production</div><h3>不是 Demo-only</h3><p class="muted">OIDC/JWT、RBAC、Tenant boundary、Audit、OTel、Helm、NetworkPolicy、External Secrets、Trivy 與 air-gap 都納入。</p></div></div>
+<div class="callout" style="margin-top:14px"><strong>核心工程決策：</strong>Role 決定能做什麼，Tenant 決定能碰哪個 Data Source；SQL Policy 限制語句型態，Database Session 最後仍維持 Read Only。安全不是靠 Prompt 約束，而是 Defense-in-Depth。</div></section>
+
+<section id="architecture"><div class="head"><h2>整體架構</h2><p>從 MCP Host 到 Data Platform backend 的完整 request path。</p></div>
+<div class="diagram"><svg viewBox="0 0 1100 540"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+<rect class="na" x="400" y="20" width="300" height="62" rx="15"/><text class="st" x="550" y="48" text-anchor="middle">ChatGPT / Claude / Codex / MCP Host</text><text class="ss" x="550" y="68" text-anchor="middle">Streamable HTTP / stdio</text><path class="arrow" d="M550 82L550 118"/>
+<rect class="node" x="385" y="118" width="330" height="68" rx="15"/><text class="st" x="550" y="145" text-anchor="middle">MCP SDK v2 Resource Server</text><text class="ss" x="550" y="166" text-anchor="middle">Static Token / OIDC JWT + JWKS</text><path class="arrow" d="M550 186L550 220"/>
+<rect class="ng" x="350" y="220" width="400" height="72" rx="15"/><text class="st" x="550" y="248" text-anchor="middle">RBAC Scope → Tenant Policy → Audit + OTel</text><text class="ss" x="550" y="270" text-anchor="middle">what can you do? / which source can you touch?</text><path class="arrow" d="M550 292L550 328"/>
+<rect class="na" x="415" y="328" width="270" height="60" rx="15"/><text class="st" x="550" y="355" text-anchor="middle">DataPlatformService</text><text class="ss" x="550" y="376" text-anchor="middle">Adapter abstraction</text>
+<path class="arrow" d="M470 388L210 430"/><path class="arrow" d="M525 388L450 430"/><path class="arrow" d="M585 388L720 430"/><path class="arrow" d="M635 388L930 430"/>
+<rect class="node" x="75" y="430" width="240" height="85" rx="14"/><text class="st" x="195" y="458" text-anchor="middle">Catalog</text><text class="ss" x="195" y="481" text-anchor="middle">PostgreSQL / Vertica</text><text class="ss" x="195" y="502" text-anchor="middle">Metadata / Statistics</text>
+<rect class="node" x="340" y="430" width="220" height="85" rx="14"/><text class="st" x="450" y="458" text-anchor="middle">Lineage / SQL</text><text class="ss" x="450" y="481" text-anchor="middle">Catalog + SQLGlot AST</text>
+<rect class="node" x="600" y="430" width="220" height="85" rx="14"/><text class="st" x="710" y="458" text-anchor="middle">Operations</text><text class="ss" x="710" y="481" text-anchor="middle">Airflow 3 /api/v2</text>
+<rect class="node" x="845" y="430" width="190" height="85" rx="14"/><text class="st" x="940" y="458" text-anchor="middle">Logs / Runbooks</text><text class="ss" x="940" y="481" text-anchor="middle">OpenSearch / Loki</text></svg></div>
+<div class="grid2" style="margin-top:14px"><div class="card"><h3>Adapter Pattern</h3><p class="muted">MCP Tool 不直接知道 PostgreSQL、Vertica 或 Airflow 的細節。Backend-specific behavior 封裝在 Adapter，降低耦合。</p></div><div class="card"><h3>Read-only by Design</h3><p class="muted">沒有 INSERT / UPDATE / DELETE / DDL / DAG trigger / secret update 等 destructive Tool。</p></div></div></section>
+
+<section id="flow"><div class="head"><h2>一次 MCP Request 發生什麼？</h2><p>以取得 Vertica table metadata 為例。</p></div><div class="steps">
+<div class="step"><strong>Authenticate</strong><div class="muted">OIDC 模式用 JWKS 驗 signature、issuer、audience、expiry、subject。</div></div>
+<div class="step"><strong>Authorize operation</strong><div class="muted"><code>get_table_metadata</code> 需要 <code>catalog:read</code>。</div></div>
+<div class="step"><strong>Authorize tenant source</strong><div class="muted">Tenant policy 確認 caller 是否允許存取 <code>vertica</code>。</div></div>
+<div class="step"><strong>Call Adapter</strong><div class="muted"><code>VerticaCatalogAdapter</code> 查 <code>v_catalog</code>，session 維持 READ ONLY。</div></div>
+<div class="step"><strong>Audit + Observe</strong><div class="muted">記 actor / tenant / role / action / outcome / latency，並關聯 trace ID。</div></div></div></section>
+
+<section id="versions"><div class="head"><h2>版本演進</h2><p>每版對應一個工程成熟度里程碑。</p></div><div class="timeline">
+<div class="tl"><h3>v0.1 · MCP Foundation</h3><p class="muted">MCP SDK v2、stdio/HTTP、Demo、PostgreSQL read-only、Docker、pytest/Ruff、Trivy。</p></div>
+<div class="tl"><h3>v0.2 · DataOps Integration</h3><p class="muted">Airflow 3、OpenSearch、Loki、MCP Resources/Prompts、protocol tests。</p></div>
+<div class="tl"><h3>v0.3 · Enterprise Data Platform</h3><p class="muted">Vertica、Composite Catalog、Metadata、Lineage、SQLGlot AST、Bearer RBAC、Audit。</p></div>
+<div class="tl"><h3>v0.4 · Production Delivery</h3><p class="muted">OIDC/JWT、Multi-tenancy、OTel、Kubernetes/Helm、External Secrets、NetworkPolicy、Air-gap、gated Release。</p></div></div></section>
+
+<section id="tools"><div class="head"><h2>MCP Tool Catalog</h2><p>可搜尋 tool / scope / purpose。</p></div><input id="filter" class="filter" placeholder="例如 lineage、catalog、logs..."><div class="tw"><table id="toolsTable"><thead><tr><th>Tool</th><th>Scope</th><th>Tenant</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>health</code></td><td><code>platform:read</code></td><td>—</td><td>health/version</td></tr>
+<tr><td><code>whoami</code></td><td><code>platform:read</code></td><td>—</td><td>actor / role / tenant / scopes</td></tr>
+<tr><td><code>list_data_sources</code></td><td><code>catalog:read</code></td><td>filter</td><td>tenant-visible sources</td></tr>
+<tr><td><code>list_schemas</code></td><td><code>catalog:read</code></td><td>yes</td><td>schemas</td></tr>
+<tr><td><code>list_tables</code></td><td><code>catalog:read</code></td><td>yes</td><td>tables/views</td></tr>
+<tr><td><code>describe_table</code></td><td><code>catalog:read</code></td><td>yes</td><td>column metadata</td></tr>
+<tr><td><code>table_statistics</code></td><td><code>catalog:read</code></td><td>yes</td><td>lightweight statistics</td></tr>
+<tr><td><code>get_table_metadata</code></td><td><code>catalog:read</code></td><td>yes</td><td>owner/type/projections</td></tr>
+<tr><td><code>get_table_lineage</code></td><td><code>lineage:read</code></td><td>yes</td><td>catalog-backed lineage</td></tr>
+<tr><td><code>analyze_sql_lineage</code></td><td><code>lineage:read</code></td><td>—</td><td>SQL AST lineage</td></tr>
+<tr><td><code>explain_sql</code></td><td><code>sql:explain</code></td><td>yes</td><td>guarded EXPLAIN</td></tr>
+<tr><td><code>list_dags</code></td><td><code>operations:read</code></td><td>—</td><td>DAG discovery</td></tr>
+<tr><td><code>get_dag_status</code></td><td><code>operations:read</code></td><td>—</td><td>latest DAG state</td></tr>
+<tr><td><code>search_etl_logs</code></td><td><code>logs:read</code></td><td>—</td><td>OpenSearch/Loki log search</td></tr>
+<tr><td><code>search_runbooks</code></td><td><code>runbook:read</code></td><td>—</td><td>troubleshooting knowledge</td></tr>
+</tbody></table></div><div class="callout warn" style="margin-top:12px"><strong>邊界：</strong>v0.4 Tenant isolation 聚焦 Catalog/Data Source operations；Airflow/Logs/Runbooks 若需 tenant isolation，應擴充 policy layer 或使用 tenant-separated backends。</div></section>
+
+<section id="lineage"><div class="head"><h2>Metadata & Lineage</h2><p>把資料庫觀察到的事實與 SQL 推導關係刻意分開。</p></div><div class="grid2">
+<div class="card"><div class="kpi">Catalog-backed</div><h3>資料庫觀察到的血緣</h3><p>Vertica 使用 <code>v_catalog.view_tables</code>。</p><pre>vertica.public.orders
+        │
+        ▼
+vertica.mart.daily_sales</pre></div>
+<div class="card"><div class="kpi">SQL-derived</div><h3>SQL AST 推導血緣</h3><p><code>analyze_sql_lineage</code> 解析實際 input tables 與 CTE。</p><pre>WITH recent AS (
+  SELECT * FROM public.orders
+)
+SELECT * FROM recent
+JOIN mart.customers c ...
+
+Inputs:
+- public.orders
+- mart.customers
+CTE:
+- recent</pre></div></div></section>
+
+<section id="security"><div class="head"><h2>Security / Authorization</h2><p>多層控制，而不是只做登入驗證。</p></div><div class="grid3">
+<div class="card"><h3>OIDC / JWT</h3><p class="muted">JWKS signature、algorithm allow-list、issuer、audience、expiration、subject、role mapping、tenant claim。</p></div>
+<div class="card"><h3>RBAC + Tenant</h3><p><span class="pill">reader</span><span class="pill">analyst</span><span class="pill">operator</span><span class="pill">admin</span></p><p class="muted">Role 決定 operation；Tenant 決定 source。</p></div>
+<div class="card"><h3>SQL + DB boundary</h3><p class="muted">SQLGlot AST 拒絕 DML/DDL/multi-statement/SELECT INTO/write CTE；PostgreSQL/Vertica session 仍維持 read-only。</p></div></div>
+<div class="callout" style="margin-top:14px"><strong>Audit hygiene：</strong>Bearer token、password、DSN、raw SQL 不進 audit/telemetry；SQL 以 fingerprint 記錄，並可關聯 OpenTelemetry trace ID。</div></section>
+
+<section id="tenant"><div class="head"><h2>Multi-tenancy Example</h2><p>Role 與 Tenant 是兩個不同的授權維度。</p></div><div class="grid2"><div class="card"><button class="copy">Copy</button><pre>export DPMCP_TENANT_ENABLED=true
+export DPMCP_TENANT_ALLOWED_SOURCES_JSON='{
+  "tenant-a":["postgres"],
+  "tenant-b":["vertica"],
+  "platform-admin":["*"]
+}'</pre></div><div class="card"><pre>tenant-a + analyst
+├─ metadata(postgres)  ✓
+├─ lineage(postgres)   ✓
+├─ explain(postgres)   ✓
+├─ metadata(vertica)   ✗
+└─ list_dags           ✗
+   lacks operations:read</pre></div></div></section>
+
+<section id="observability"><div class="head"><h2>Audit + OpenTelemetry</h2><p>從 actor 一路追到 latency 與 distributed trace。</p></div><div class="grid2"><div class="card"><h3>Signals</h3><ul><li><code>dpmcp.&lt;action&gt;</code> spans</li><li><code>dpmcp.invocations</code></li><li><code>dpmcp.invocation.duration</code></li></ul><p class="muted">透過 OTLP/HTTP 送至 Collector，再轉 Grafana/Tempo/Prometheus/Azure Monitor/Datadog 等。</p></div><div class="card"><pre>{
+  "action": "metadata.get_table",
+  "actor": "agent-client",
+  "tenant": "tenant-a",
+  "role": "analyst",
+  "outcome": "success",
+  "trace_id": "012345...abcdef"
+}</pre></div></div></section>
+
+<section id="deploy"><div class="head"><h2>Kubernetes / Helm</h2><p>安全預設直接進 Chart defaults。</p></div><div class="grid3">
+<div class="card"><h3>Pod Security</h3><ul><li>runAsNonRoot</li><li>UID/GID 10001</li><li>readOnlyRootFilesystem</li><li>drop ALL capabilities</li><li>RuntimeDefault seccomp</li></ul></div>
+<div class="card"><h3>Reliability</h3><ul><li>replicas = 2</li><li>readiness/liveness</li><li>requests/limits</li><li>PDB</li><li>optional HPA</li></ul></div>
+<div class="card"><h3>Secrets / Network</h3><ul><li>ServiceAccount token disabled</li><li>External Secrets Operator</li><li>Azure Key Vault example</li><li>NetworkPolicy</li><li>non-DNS egress denied by default</li></ul></div></div>
+<div class="card" style="margin-top:14px"><button class="copy">Copy</button><pre>kubectl apply -f examples/kubernetes/namespace-restricted.yaml
+
+helm upgrade --install dpmcp \
+  deploy/helm/data-platform-mcp-server \
+  --namespace data-platform-mcp</pre></div>
+<div class="callout warn" style="margin-top:12px"><strong>注意：</strong>預設 Egress 只有 DNS；PostgreSQL、Vertica、OIDC/JWKS、Airflow、OpenSearch、Loki、OTLP Collector 都應明確 allow。</div></section>
+
+<section id="quickstart"><div class="head"><h2>使用方式</h2><p>從 Demo 到 Multi-source / OIDC。</p></div>
+<details open><summary>1. Local Demo</summary><button class="copy">Copy</button><pre>git clone https://github.com/kewinall/data-platform-mcp-server.git
+cd data-platform-mcp-server
+python -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+cp .env.example .env
+DPMCP_TRANSPORT=streamable-http data-platform-mcp</pre><p>Endpoint: <code>http://127.0.0.1:8000/mcp</code></p></details>
+<details><summary>2. PostgreSQL + Vertica Multi-source</summary><button class="copy">Copy</button><pre>export DPMCP_MODE=multi
+export DPMCP_POSTGRES_DSN='postgresql://readonly_user:change-me@postgres:5432/analytics'
+export DPMCP_VERTICA_DSN='vertica://readonly_user:change-me@vertica:5433/warehouse?tlsmode=require'
+data-platform-mcp</pre></details>
+<details><summary>3. OIDC</summary><button class="copy">Copy</button><pre>export DPMCP_TRANSPORT=streamable-http
+export DPMCP_AUTH_ENABLED=true
+export DPMCP_AUTH_MODE=oidc
+export DPMCP_AUTH_ISSUER_URL='https://idp.example.com/realms/data-platform'
+export DPMCP_AUTH_RESOURCE_URL='https://mcp.example.com/mcp'
+export DPMCP_OIDC_JWKS_URL='https://idp.example.com/realms/data-platform/protocol/openid-connect/certs'
+export DPMCP_OIDC_AUDIENCE='data-platform-mcp'
+export DPMCP_OIDC_ROLE_CLAIM='realm_access.roles'
+export DPMCP_OIDC_TENANT_CLAIM='tenant'</pre></details>
+<details><summary>4. OpenTelemetry</summary><button class="copy">Copy</button><pre>export DPMCP_OTEL_ENABLED=true
+export DPMCP_OTEL_SERVICE_NAME=data-platform-mcp-server
+export DPMCP_OTEL_EXPORTER_OTLP_ENDPOINT='http://otel-collector.observability:4318'
+export DPMCP_DEPLOYMENT_ENVIRONMENT=prod</pre></details></section>
+
+<section id="airgap"><div class="head"><h2>Air-gapped Delivery</h2><p>目標環境不需要連 PyPI / Docker Hub / GitHub。</p></div><div class="grid2"><div class="card"><h3>Build</h3><button class="copy">Copy</button><pre>make airgap</pre><p class="muted">Output: <code>dist/data-platform-mcp-server-0.4.0-airgap.tar.gz</code></p></div><div class="card"><h3>Bundle</h3><pre>wheelhouse/
+images/
+helm/
+docs/
+.env.example
+README.md
+LICENSE
+SHA256SUMS
+verify-airgap-bundle.sh</pre></div></div></section>
+
+<section id="cicd"><div class="head"><h2>CI / Security / Release</h2><p>同一 main commit 的 CI 與 Security 都成功才發布。</p></div><div class="grid2"><div class="card"><h3>CI</h3><ul><li>Python 3.11 / 3.12</li><li>Ruff / pytest / compileall</li><li>Docker build</li><li>Shell syntax</li><li>Helm lint / template</li></ul></div><div class="card"><h3>Security</h3><ul><li>pip-audit</li><li>Trivy filesystem</li><li>render Kubernetes YAML</li><li>Trivy config scan</li></ul></div></div><div class="callout" style="margin-top:14px"><strong>Release Gate：</strong>Both green → Git Tag → GitHub Release → Helm chart <code>.tgz</code> asset。<br><span class="badge">v0.4.0 已實際通過完整 pipeline</span></div></section>
+
+<section id="interview" class="card"><div class="head"><h2>面試怎麼講</h2><p>把「用了哪些工具」轉成「解了什麼工程問題」。</p></div><div class="grid2"><div><h3>60 秒版本</h3><p>「我做了一個 Data Platform MCP Server，把 PostgreSQL、Vertica、Airflow、Log Search 與 Metadata/Lineage 封裝成標準 MCP capabilities，讓 AI Agent 不需要拿到底層系統的直接寫入權限。安全上分成 OIDC authentication、RBAC scope、tenant source boundary、SQL AST policy 與 database read-only 多層控制，再把 Audit 與 OpenTelemetry 串起來。部署面有 Helm、Pod Security、NetworkPolicy、External Secrets、Trivy，也支援 air-gapped bundle。」</p></div><div><h3>可追問的題目</h3><ul><li>為何 MCP，而不是直接做 SQL Agent？</li><li>如何防 Prompt Injection？</li><li>Role 與 Tenant 有什麼不同？</li><li>Multi-tenancy 做到哪一層？</li><li>為何需要 DB-side read-only？</li><li>如何部署到企業 Kubernetes / 封閉網路？</li></ul></div></div><div class="callout"><strong>作品定位：</strong>證明的不只是「會接 LLM」，而是能把 Data Engineering / DataOps 經驗延伸到 MCP / Agentic / AI Platform Engineering。</div></section>
+
+<section id="faq"><div class="head"><h2>FAQ</h2><p>常見使用者與面試官問題。</p></div>
+<details><summary>會讓 AI 直接讀正式資料嗎？</summary><p>Repository 預設 synthetic demo data；真實環境需自行設定 read-only DB 帳號、Secret 與 NetworkPolicy。</p></details>
+<details><summary>這算完整 Multi-tenant SaaS 嗎？</summary><p>不是。v0.4 明確是 catalog source-level isolation reference；row/column security 應結合 DB RLS/CLS 或後續 OPA/Cedar 等 policy engine。</p></details>
+<details><summary>為什麼不直接 COUNT(*)？</summary><p>定位為 operational metadata inspection，避免大表掃描；Vertica 使用 projection storage，PostgreSQL 使用 planner estimate。</p></details>
+<details><summary>為什麼要 Air-gapped？</summary><p>企業資料平台常存在封閉網段；wheelhouse、container image、Helm chart 與 checksum 一起交付可展示離線部署思考。</p></details></section>
+
+<section id="english"><div class="head"><h2>English Executive Summary</h2><p>For interviewers who prefer an English overview.</p></div><div class="card"><p><strong>Data Platform MCP Server</strong> is a production-oriented reference implementation that exposes enterprise data-platform capabilities to MCP-compatible AI clients without granting unrestricted backend access.</p><p>It integrates PostgreSQL, Vertica, Airflow 3, OpenSearch/Loki, metadata and lineage through adapter abstractions. The security model combines bearer/OIDC authentication, role-based scopes, tenant-aware source authorization, AST-based read-only SQL validation, database-level read-only sessions, structured audit logging, and OpenTelemetry correlation.</p><p>The production layer includes a hardened Kubernetes Helm chart, NetworkPolicy, External Secrets Operator integration, CI/Security gates, Trivy scans, and an air-gapped deployment bundle. It demonstrates a transition from Data Engineering/DataOps into MCP and AI Platform Engineering.</p></div></section>
+
+<footer><p><strong>Data Platform MCP Server v0.4.0</strong> · Portfolio / Reference Architecture</p><p><a href="https://github.com/kewinall/data-platform-mcp-server">github.com/kewinall/data-platform-mcp-server</a></p><p>Single-file HTML · CSS / SVG / JavaScript embedded · Offline readable</p></footer>
+</main>
+<script>
+const root=document.documentElement;const saved=localStorage.getItem("dpmcp-theme");if(saved)root.dataset.theme=saved;
+document.getElementById("theme").onclick=()=>{const n=root.dataset.theme==="light"?"dark":"light";root.dataset.theme=n;localStorage.setItem("dpmcp-theme",n)};
+window.addEventListener("scroll",()=>{const h=document.documentElement.scrollHeight-innerHeight;document.getElementById("progress").style.width=(h?scrollY/h*100:0)+"%"},{passive:true});
+document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{const p=b.parentElement.querySelector("pre");if(!p)return;try{await navigator.clipboard.writeText(p.innerText);const o=b.textContent;b.textContent="Copied ✓";setTimeout(()=>b.textContent=o,1200)}catch{b.textContent="Select manually"}});
+document.getElementById("filter").addEventListener("input",e=>{const q=e.target.value.toLowerCase();document.querySelectorAll("#toolsTable tbody tr").forEach(r=>r.style.display=r.innerText.toLowerCase().includes(q)?"":"none")});
+</script>
+</body></html>
