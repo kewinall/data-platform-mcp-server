@@ -2,6 +2,9 @@
 
 **目前版本 / Current release: v0.4.0**
 
+> **📘 Interactive Project Guide / 專案互動式說明文件**  
+> [Open the single-file HTML guide](docs/data-platform-mcp-server-guide.html) — 面試官速讀、架構圖、MCP Tools、Security、OIDC/RBAC/Multi-tenancy、Kubernetes/Helm、CI/CD 與使用教學集中在同一頁。
+
 > **繁體中文**：面向 Data Engineering / DataOps 的 production-oriented Model Context Protocol (MCP) Server 參考實作，提供安全的資料平台 discovery、metadata、lineage、SQL explain、Airflow 與 log/runbook 查詢能力。
 >
 > **English**: A production-oriented MCP server reference for Data Engineering and DataOps, with secure catalog discovery, metadata, lineage, guarded SQL explain, Airflow operations visibility, and log/runbook search.
