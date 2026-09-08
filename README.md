@@ -1,92 +1,129 @@
 # Data Platform MCP Server
 
-**目前版本 / Current release: v0.3.0**
+**目前版本 / Current release: v0.4.0**
 
-> **繁體中文**：這是一個面向 Data Engineering / DataOps 的 Model Context Protocol (MCP) Server 參考專案，讓 ChatGPT、Claude、Codex 或其他 MCP Host 能以標準 MCP Tool、Resource、Prompt 介面安全地查詢資料平台。
+> **繁體中文**：面向 Data Engineering / DataOps 的 production-oriented Model Context Protocol (MCP) Server 參考實作，提供安全的資料平台 discovery、metadata、lineage、SQL explain、Airflow 與 log/runbook 查詢能力。
 >
-> **English**: A production-oriented Model Context Protocol (MCP) server reference for Data Engineering and DataOps. It exposes data-platform capabilities through standardized MCP tools, resources, and prompts.
+> **English**: A production-oriented MCP server reference for Data Engineering and DataOps, with secure catalog discovery, metadata, lineage, guarded SQL explain, Airflow operations visibility, and log/runbook search.
 
-> **繁體中文**：Repository 預設只使用 synthetic demo data，不包含任何公司、客戶、真實資料庫帳密、內部 URL 或正式環境資訊。
->
-> **English**: The repository defaults to synthetic demo data and contains no company/customer data, real credentials, internal URLs, or production environment information.
+Repository 預設使用 synthetic demo data，不含任何公司/客戶資料、真實帳密或內部 URL。
 
-## v0.3 重點 / v0.3 Highlights
+## v0.4 Highlights
 
-- Official MCP Python SDK v2 (`MCPServer`)
-- stdio and Streamable HTTP transports
+### Data Platform
 - PostgreSQL + Vertica catalog adapters
-- Composite catalog mode for multiple database sources
-- Vertica metadata, projections, lightweight statistics, and catalog-backed view lineage
-- SQLGlot AST-based read-only SQL policy
-- SQL lineage extraction for referenced tables and CTEs
-- MCP bearer authentication over Streamable HTTP
-- RBAC roles: `reader`, `analyst`, `operator`, `admin`
-- Per-tool scopes such as `catalog:read`, `lineage:read`, `operations:read`, and `logs:read`
-- Structured JSONL audit log with actor, role, action, outcome, and latency
-- Airflow 3 stable public REST API (`/api/v2`) adapter
-- OpenSearch / Grafana Loki ETL log search
-- Docker / Docker Compose
-- Protocol-level MCP tests + pytest + Ruff CI
-- pip-audit + Trivy security workflow
-- CI/Security-gated automatic Git tag + GitHub Release
-- Traditional Chinese / English documentation
+- multi-source composite catalog
+- metadata / projection metadata
+- catalog-backed lineage
+- SQLGlot AST SQL lineage
+- read-only SQL policy
+- Airflow 3 `/api/v2`
+- OpenSearch / Loki log search
 
-## 架構 / Architecture
+### Identity / Security
+- MCP Python SDK v2
+- Streamable HTTP bearer authentication
+- static token reference mode
+- OIDC/JWT + JWKS verification
+- Keycloak / Microsoft Entra ID examples
+- roles: `reader`, `analyst`, `operator`, `admin`
+- per-tool scopes
+- tenant-aware catalog source isolation
+- structured audit JSONL
+- SQL fingerprints instead of raw SQL audit text
+
+### Production Delivery
+- Kubernetes Helm chart
+- Restricted-style Pod Security defaults
+- NetworkPolicy
+- PodDisruptionBudget
+- optional HPA
+- External Secrets Operator v1
+- Azure Key Vault Workload Identity example
+- OpenTelemetry traces + metrics over OTLP/HTTP
+- air-gapped bundle builder
+- CI/Security-gated automatic Git tag + GitHub Release
+- packaged Helm chart attached to releases
+
+## Architecture
 
 ```text
 ChatGPT / Claude / Codex / MCP Host
-                |
-        MCP (stdio / HTTP)
-                |
-                v
-      +---------------------------+
-      | Data Platform MCP Server  |
-      |       MCPServer v2        |
-      +-------------+-------------+
-                    |
-          Auth / RBAC / Audit
-                    |
-        +-----------+-------------+----------------+
-        |                         |                |
-        v                         v                v
-  Catalog Adapter          Operations Adapter   Log Adapter
- Demo/Postgres/Vertica       Demo / Airflow 3   Demo/OpenSearch/Loki
-        |
-        +--> Metadata / Lineage
-        +--> SQLGlot AST policy
+                 |
+                 | MCP Streamable HTTP
+                 v
+        +----------------------+
+        | MCP SDK Bearer Gate  |
+        | Static / OIDC JWT    |
+        +----------+-----------+
+                   |
+             Role / Scope
+                   |
+             Tenant Policy
+                   |
+             Audit + OTel
+                   |
+        +----------v-----------+
+        | DataPlatformService  |
+        +-----+-----------+----+
+              |           |
+       Catalog layer   DataOps layer
+              |           |
+       +------+-----+     +----------------+
+       |            |     |                |
+ PostgreSQL      Vertica Airflow       Logs/Runbooks
+       |
+ Composite multi-source routing
+       |
+ Metadata / Lineage / SQL Policy
+```
+
+Kubernetes deployment:
+
+```text
+External Client / MCP Host
+          |
+          v
+   Kubernetes Service
+          |
+   NetworkPolicy
+          |
+  MCP Server Pods (2+)
+    |     |       |
+    |     |       +--> OTLP Collector
+    |     +----------> OIDC / JWKS
+    +----------------> DB / Airflow / Logs
+
+External Secrets Operator
+          |
+   Vault / Key Vault
+          |
+   Kubernetes Secret
+          |
+       MCP Pods
 ```
 
 ## MCP Tools
 
-| Tool | Purpose / 用途 |
-|---|---|
-| `health` | Server health/version / 服務健康狀態 |
-| `whoami` | Effective caller identity/RBAC / 呼叫者身分與角色 |
-| `list_data_sources` | List configured sources / 列出資料來源 |
-| `list_schemas` | List schemas / 列出 Schema |
-| `list_tables` | List tables/views / 列出 Table/View |
-| `describe_table` | Column metadata / 欄位資訊 |
-| `table_statistics` | Lightweight statistics / 輕量統計 |
-| `get_table_metadata` | Governed metadata / 物件類型、Owner、Projection 等 |
-| `get_table_lineage` | Catalog-backed lineage / Catalog 血緣 |
-| `analyze_sql_lineage` | SQL AST lineage / SQL 輸入表與 CTE 血緣 |
-| `explain_sql` | Guarded read-only EXPLAIN / 唯讀 SQL 執行計畫 |
-| `list_dags` | List Airflow/demo DAGs / DAG 清單 |
-| `get_dag_status` | Latest DAG state / DAG 狀態 |
-| `search_etl_logs` | Demo/OpenSearch/Loki log search / ETL Log 搜尋 |
-| `search_runbooks` | Operations knowledge / Runbook 搜尋 |
+| Tool | Scope | Purpose |
+|---|---|---|
+| `health` | `platform:read` | health/version |
+| `whoami` | `platform:read` | identity, role, tenant, scopes |
+| `list_data_sources` | `catalog:read` | tenant-visible sources |
+| `list_schemas` | `catalog:read` | schemas |
+| `list_tables` | `catalog:read` | tables/views |
+| `describe_table` | `catalog:read` | column metadata |
+| `table_statistics` | `catalog:read` | lightweight statistics |
+| `get_table_metadata` | `catalog:read` | owner/type/projections |
+| `get_table_lineage` | `lineage:read` | catalog lineage |
+| `analyze_sql_lineage` | `lineage:read` | SQL AST lineage |
+| `explain_sql` | `sql:explain` | guarded EXPLAIN |
+| `list_dags` | `operations:read` | DAG discovery |
+| `get_dag_status` | `operations:read` | latest DAG state |
+| `search_etl_logs` | `logs:read` | ETL log search |
+| `search_runbooks` | `runbook:read` | troubleshooting knowledge |
 
-### Resources
-
-- `platform://capabilities`
-- `catalog://{source}/{schema}/{table}`
-
-### Prompts
-
-- `incident_triage(dag_id, symptom)`
-- `data_discovery(source, schema, question)`
-
-## 快速開始 / Quick Start
+## Quick Start
 
 ```bash
 git clone https://github.com/kewinall/data-platform-mcp-server.git
@@ -103,122 +140,188 @@ stdio:
 DPMCP_TRANSPORT=stdio data-platform-mcp
 ```
 
-Streamable HTTP:
+HTTP:
 
 ```bash
 DPMCP_TRANSPORT=streamable-http data-platform-mcp
 ```
 
-Default MCP endpoint:
+Endpoint:
 
 ```text
-http://localhost:8000/mcp
+http://127.0.0.1:8000/mcp
 ```
 
-## PostgreSQL + Vertica Multi-source Example
+## Multi-source PostgreSQL + Vertica
 
 ```bash
 export DPMCP_MODE=multi
 export DPMCP_POSTGRES_DSN='postgresql://readonly_user:change-me@postgres:5432/analytics'
 export DPMCP_VERTICA_DSN='vertica://readonly_user:change-me@vertica:5433/warehouse?tlsmode=require'
-
 data-platform-mcp
 ```
 
-The server exposes both sources through the same MCP catalog API:
-
-```text
-postgres
-vertica
-```
-
-## Bearer Auth + RBAC Example
-
-Bearer auth is available for **Streamable HTTP**. The MCP SDK verifies the `Authorization: Bearer ...` header before tools run.
+## OIDC + Tenant-aware RBAC
 
 ```bash
 export DPMCP_TRANSPORT=streamable-http
 export DPMCP_AUTH_ENABLED=true
-export DPMCP_AUTH_ISSUER_URL='https://auth.example.com'
-export DPMCP_AUTH_RESOURCE_URL='http://127.0.0.1:8000/mcp'
-export DPMCP_API_TOKENS_JSON='{
-  "replace-reader-token":{"client_id":"catalog-agent","role":"reader"},
-  "replace-ops-token":{"client_id":"dataops-agent","role":"operator"}
-}'
+export DPMCP_AUTH_MODE=oidc
+export DPMCP_AUTH_ISSUER_URL='https://idp.example.com/realms/data-platform'
+export DPMCP_AUTH_RESOURCE_URL='https://mcp.example.com/mcp'
+export DPMCP_OIDC_JWKS_URL='https://idp.example.com/realms/data-platform/protocol/openid-connect/certs'
+export DPMCP_OIDC_AUDIENCE='data-platform-mcp'
+export DPMCP_OIDC_ROLE_CLAIM='realm_access.roles'
+export DPMCP_OIDC_TENANT_CLAIM='tenant'
+export DPMCP_OIDC_ROLE_MAP_JSON='{"data-platform-analyst":"analyst"}'
+
+export DPMCP_TENANT_ENABLED=true
+export DPMCP_TENANT_ALLOWED_SOURCES_JSON='{"tenant-a":["postgres"],"tenant-b":["vertica"]}'
 
 data-platform-mcp
 ```
 
-Role model:
+Role answers **what** the caller may do; tenant policy answers **which catalog source** the caller may access.
 
-| Role | Core scopes |
-|---|---|
-| `reader` | platform/catalog/runbook read |
-| `analyst` | reader + SQL explain + lineage |
-| `operator` | analyst + Airflow + log search |
-| `admin` | all current read-only scopes + audit scope |
+See `docs/oidc.md`.
 
-`stdio` has no HTTP bearer layer. Its trust boundary is the local process that launches the server.
-
-## Security Principles
-
-1. No destructive MCP tool exists.
-2. SQL is parsed by SQLGlot and only a single read-only query is accepted.
-3. `SELECT ... INTO`, DML, DDL, transaction-changing commands, and multi-statements are rejected.
-4. PostgreSQL sessions use `default_transaction_read_only=on`.
-5. Vertica sessions execute `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`.
-6. Database accounts must still be least-privileged; application policy is defense-in-depth.
-7. Airflow adapter uses GET endpoints only.
-8. OpenSearch/Loki adapters only perform read/search operations.
-9. HTTP bearer authentication uses the MCP SDK authorization middleware.
-10. Audit records never contain bearer tokens and store SQL fingerprints instead of raw SQL text.
-
-## Audit
-
-Default audit output is structured logging. Optional JSONL file output:
+## OpenTelemetry
 
 ```bash
-export DPMCP_AUDIT_ENABLED=true
-export DPMCP_AUDIT_LOG_PATH=/var/log/data-platform-mcp/audit.jsonl
+export DPMCP_OTEL_ENABLED=true
+export DPMCP_OTEL_EXPORTER_OTLP_ENDPOINT='http://otel-collector:4318'
+export DPMCP_DEPLOYMENT_ENVIRONMENT=prod
 ```
 
-Example event:
+Signals:
 
-```json
-{
-  "action": "sql.explain",
-  "actor": "catalog-agent",
-  "duration_ms": 8.421,
-  "metadata": {"source": "vertica", "sql_fingerprint": "2e83b9f14c99b7e1"},
-  "outcome": "success",
-  "role": "analyst"
-}
+```text
+Traces:
+  dpmcp.<action>
+
+Metrics:
+  dpmcp.invocations
+  dpmcp.invocation.duration
 ```
 
-## CI / Release
+Audit events include the OpenTelemetry trace ID when available.
 
-CI validates Python 3.11/3.12, Ruff, pytest, compile, and Docker build. Security validates dependencies and filesystem vulnerabilities with pip-audit and Trivy.
+See `docs/observability.md`.
 
-A release is created only after **CI and Security are both successful for the same `main` commit**. The workflow reads the version from `pyproject.toml`, then creates the matching Git tag and GitHub Release.
+## Kubernetes / Helm
+
+```bash
+kubectl apply -f examples/kubernetes/namespace-restricted.yaml
+
+helm upgrade --install dpmcp   deploy/helm/data-platform-mcp-server   --namespace data-platform-mcp
+```
+
+Default chart security posture:
+
+```text
+runAsNonRoot                true
+runAsUser                   10001
+readOnlyRootFilesystem      true
+allowPrivilegeEscalation    false
+capabilities                drop ALL
+seccompProfile              RuntimeDefault
+ServiceAccount token        disabled
+NetworkPolicy               enabled
+non-DNS egress              denied by default
+```
+
+See `docs/deployment.md`.
+
+## External Secrets
+
+The Helm chart can consume either an existing Kubernetes Secret or create one through External Secrets Operator.
+
+Azure Key Vault Workload Identity example:
+
+```text
+examples/external-secrets/azure-key-vault-secretstore.yaml
+```
+
+## Air-gapped Bundle
+
+On an internet-connected staging machine:
+
+```bash
+make airgap
+```
+
+Output:
+
+```text
+dist/data-platform-mcp-server-0.4.0-airgap.tar.gz
+```
+
+It contains a Python wheelhouse, container image tar, Helm package, documentation, and SHA256 checksums.
+
+See `docs/airgap.md`.
+
+## CI / Security / Release
+
+```text
+CI
+├── Python 3.11
+├── Python 3.12
+├── Ruff
+├── pytest
+├── compileall
+├── Docker build
+├── shell syntax
+├── Helm lint
+└── Helm template
+
+Security
+├── pip-audit
+├── Trivy filesystem
+└── Trivy rendered Kubernetes config
+
+Both green
+   ↓
+Git Tag
+   ↓
+GitHub Release
+   ↓
+Helm chart .tgz asset
+```
+
+## Security Boundaries
+
+1. No destructive MCP tool exists.
+2. SQLGlot AST policy rejects write/DDL/multi-statement SQL.
+3. PostgreSQL and Vertica also use database/session read-only controls.
+4. OIDC JWT verification validates signature/issuer/audience/expiry/subject.
+5. Unknown roles are rejected.
+6. Tenant isolation is source-level in v0.4; it is not row-level RLS.
+7. Tokens, passwords, DSNs, and raw SQL are excluded from normal audit/telemetry metadata.
+8. Kubernetes egress is deny-by-default except DNS in the Helm defaults.
+9. Backend least privilege remains mandatory.
 
 ## Roadmap
 
-- **v0.1** ✅ MCP foundation + PostgreSQL read-only adapter
-- **v0.2** ✅ Airflow 3 + OpenSearch/Loki + MCP Resources/Prompts
-- **v0.3** ✅ Vertica + multi-source catalog + metadata/lineage + SQL AST policy + bearer RBAC + audit
-- **v0.4** Kubernetes/Helm + OIDC/multi-tenancy + OpenTelemetry + External Secrets + offline deployment
+- **v0.1** ✅ MCP foundation + PostgreSQL
+- **v0.2** ✅ Airflow 3 + OpenSearch/Loki + MCP resources/prompts
+- **v0.3** ✅ Vertica + metadata/lineage + AST SQL policy + RBAC/audit
+- **v0.4** ✅ Kubernetes/Helm + OIDC + multi-tenancy + OTel + External Secrets + air-gap
+
+Potential next work includes OPA/Cedar policy, OpenMetadata/DataHub, signed images/SBOM provenance, Gateway API, and GitOps.
 
 ## Documentation
 
-- `docs/architecture.md` — 架構 / Architecture
-- `docs/tool-catalog.md` — MCP Tool Catalog
-- `docs/installation.md` — 安裝 / Installation
-- `docs/integrations.md` — PostgreSQL / Vertica / Airflow / OpenSearch / Loki
-- `docs/security.md` — Security / RBAC / Audit Design
-- `docs/v0.2.md` — v0.2 Release Guide
-- `docs/v0.3.md` — v0.3 Release Guide
-- `docs/roadmap.md` — Roadmap
-- `CHANGELOG.md` — Release notes
+- `docs/architecture.md`
+- `docs/installation.md`
+- `docs/integrations.md`
+- `docs/security.md`
+- `docs/tool-catalog.md`
+- `docs/deployment.md`
+- `docs/oidc.md`
+- `docs/observability.md`
+- `docs/airgap.md`
+- `docs/v0.4.md`
+- `CHANGELOG.md`
 
 ## License
 

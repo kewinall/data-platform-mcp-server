@@ -12,25 +12,34 @@
 - OpenSearch ETL log search
 - Grafana Loki ETL log search
 - MCP resources and prompts
-- Protocol-level in-memory MCP integration tests
+- Protocol-level MCP integration tests
 
 ## v0.3 — Enterprise Data Platform ✅
-- Official `vertica-python` catalog adapter
-- PostgreSQL + Vertica composite catalog routing
-- Table metadata and projection metadata
-- Vertica view lineage via `v_catalog.view_tables`
-- SQLGlot SQL lineage extraction
-- Parser/AST-based read-only SQL policy
-- MCP SDK bearer-token authentication
-- RBAC scopes and roles
+- Vertica catalog adapter
+- PostgreSQL + Vertica composite catalog
+- Metadata / lineage
+- SQLGlot AST read-only SQL policy
+- Bearer RBAC
 - Structured audit JSONL
-- CI/Security-gated tag + GitHub Release automation
+- CI/Security-gated release automation
 
-## v0.4 — Production Delivery
+## v0.4 — Production Delivery ✅
 - Kubernetes + Helm
-- OIDC / Keycloak / Entra integration
-- Multi-tenancy and tenant-aware RBAC
-- OpenTelemetry metrics/traces
-- External Secrets examples
-- NetworkPolicy and Pod Security examples
-- Offline / air-gapped deployment bundle
+- OIDC/JWKS resource-server authentication
+- Keycloak and Microsoft Entra ID configuration examples
+- Multi-tenancy and tenant-aware source authorization
+- OpenTelemetry traces + metrics via OTLP/HTTP
+- External Secrets Operator integration
+- Azure Key Vault Workload Identity example
+- Restricted Pod Security defaults
+- NetworkPolicy / PDB / HPA
+- Air-gapped deployment bundle
+- Helm chart release asset
+
+## Next ideas / 後續可延伸
+- Database-level row/column policy integration
+- OPA / Cedar authorization policy backend
+- Catalog integrations such as OpenMetadata/DataHub
+- Kubernetes Gateway API / Ingress examples
+- Signed OCI images and SBOM/provenance
+- GitOps examples for Argo CD / Flux

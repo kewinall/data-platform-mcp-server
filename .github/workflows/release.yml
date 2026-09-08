@@ -85,7 +85,7 @@ jobs:
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Release $TAG already exists; nothing to do."
+            echo "Release $TAG already exists; assets will be refreshed."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -98,8 +98,19 @@ jobs:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         shell: bash
         run: |
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$SOURCE_SHA" \
-            --title "$TAG" \
-            --generate-notes
+          gh release create "$TAG"             --repo "$GITHUB_REPOSITORY"             --target "$SOURCE_SHA"             --title "$TAG"             --generate-notes
+
+      - name: Package Helm chart
+        if: steps.gate.outputs.ready == 'true'
+        uses: azure/setup-helm@v4
+
+      - name: Upload Helm release asset
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          mkdir -p dist
+          helm package deploy/helm/data-platform-mcp-server --destination dist
+          gh release upload "$TAG" dist/*.tgz --clobber --repo "$GITHUB_REPOSITORY"

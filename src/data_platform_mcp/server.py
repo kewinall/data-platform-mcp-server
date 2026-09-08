@@ -8,10 +8,12 @@ from mcp.server.auth.settings import AuthSettings
 from pydantic import AnyHttpUrl
 
 from data_platform_mcp.audit import AuditLogger
-from data_platform_mcp.auth import StaticTokenVerifier, current_principal, require_scope
+from data_platform_mcp.auth import build_token_verifier, current_principal, require_scope
 from data_platform_mcp.config import get_settings
 from data_platform_mcp.factory import build_service
+from data_platform_mcp.observability import Telemetry
 from data_platform_mcp.security import sql_fingerprint
+from data_platform_mcp.tenant import TenantPolicy
 
 T = TypeVar("T")
 
@@ -19,16 +21,35 @@ settings = get_settings()
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
 service = build_service(settings)
 audit = AuditLogger(enabled=settings.audit_enabled, path=settings.audit_log_path)
+tenant_policy = TenantPolicy.from_json(
+    settings.tenant_allowed_sources_json,
+    enabled=settings.tenant_enabled,
+)
+telemetry = Telemetry(
+    enabled=settings.otel_enabled,
+    service_name=settings.otel_service_name,
+    service_version="0.4.0",
+    environment=settings.deployment_environment,
+    endpoint=settings.otel_exporter_otlp_endpoint,
+    metric_export_interval_ms=settings.otel_metric_export_interval_ms,
+)
 
 mcp_kwargs: dict[str, Any] = {}
 if settings.auth_enabled:
     if settings.transport != "streamable-http":
         raise ValueError("DPMCP_AUTH_ENABLED=true requires DPMCP_TRANSPORT=streamable-http")
-    if not settings.api_tokens_json:
-        raise ValueError("DPMCP_API_TOKENS_JSON is required when bearer authentication is enabled")
-    mcp_kwargs["token_verifier"] = StaticTokenVerifier.from_json(
-        settings.api_tokens_json,
-        settings.auth_resource_url,
+    mcp_kwargs["token_verifier"] = build_token_verifier(
+        auth_mode=settings.auth_mode,
+        resource_url=settings.auth_resource_url,
+        api_tokens_json=settings.api_tokens_json,
+        issuer=settings.auth_issuer_url,
+        oidc_jwks_url=settings.oidc_jwks_url,
+        oidc_audience=settings.oidc_audience,
+        oidc_algorithms=settings.oidc_algorithms,
+        oidc_role_claim=settings.oidc_role_claim,
+        oidc_tenant_claim=settings.oidc_tenant_claim,
+        oidc_client_id_claim=settings.oidc_client_id_claim,
+        oidc_role_map_json=settings.oidc_role_map_json,
     )
     mcp_kwargs["auth"] = AuthSettings(
         issuer_url=AnyHttpUrl(settings.auth_issuer_url),
@@ -41,7 +62,8 @@ mcp = MCPServer(
     "Data Platform MCP Server",
     instructions=(
         "Read-only Data Engineering/DataOps server. Prefer discovery and lineage tools before "
-        "SQL explain. Never infer permission to mutate databases or orchestrators from these tools."
+        "SQL explain. Enforce role scopes and tenant source boundaries. Never infer permission "
+        "to mutate databases or orchestrators from these tools."
     ),
     **mcp_kwargs,
 )
@@ -52,30 +74,61 @@ def _invoke(
     scope: str,
     function: Callable[[], T],
     metadata: dict[str, Any] | None = None,
+    source: str | None = None,
 ) -> T:
     started = time.perf_counter()
     principal = current_principal()
-    try:
-        principal = require_scope(scope)
-        result = function()
-    except Exception as exc:
+
+    with telemetry.span(action, scope) as span:
+        try:
+            principal = require_scope(scope)
+            telemetry.set_identity(
+                span,
+                role=principal.role,
+                tenant=principal.tenant,
+            )
+            if source:
+                tenant_policy.require_source(principal, source)
+            result = function()
+        except Exception as exc:
+            duration_ms = (time.perf_counter() - started) * 1000
+            outcome = "denied" if isinstance(exc, PermissionError) else "error"
+            span.set_attribute("dpmcp.outcome", outcome)
+            span.record_exception(exc)
+            telemetry.record(
+                action=action,
+                outcome=outcome,
+                role=principal.role,
+                duration_ms=duration_ms,
+            )
+            audit.record(
+                action=action,
+                principal=principal,
+                outcome=outcome,
+                duration_ms=duration_ms,
+                metadata=metadata,
+                error_type=type(exc).__name__,
+                trace_id=telemetry.trace_id(span),
+            )
+            raise
+
+        duration_ms = (time.perf_counter() - started) * 1000
+        span.set_attribute("dpmcp.outcome", "success")
+        telemetry.record(
+            action=action,
+            outcome="success",
+            role=principal.role,
+            duration_ms=duration_ms,
+        )
         audit.record(
             action=action,
             principal=principal,
-            outcome="denied" if isinstance(exc, PermissionError) else "error",
-            duration_ms=(time.perf_counter() - started) * 1000,
+            outcome="success",
+            duration_ms=duration_ms,
             metadata=metadata,
-            error_type=type(exc).__name__,
+            trace_id=telemetry.trace_id(span),
         )
-        raise
-    audit.record(
-        action=action,
-        principal=principal,
-        outcome="success",
-        duration_ms=(time.perf_counter() - started) * 1000,
-        metadata=metadata,
-    )
-    return result
+        return result
 
 
 @mcp.tool()
@@ -86,16 +139,19 @@ def health() -> dict[str, str]:
 
 @mcp.tool()
 def whoami() -> dict[str, Any]:
-    """Return the authenticated principal and effective RBAC role/scopes."""
+    """Return the authenticated principal, tenant, and effective RBAC scopes."""
 
     def resolve() -> dict[str, Any]:
         principal = current_principal()
         return {
             "client_id": principal.client_id,
             "subject": principal.subject,
+            "tenant": principal.tenant,
             "role": principal.role,
             "scopes": list(principal.scopes),
             "auth_enabled": settings.auth_enabled,
+            "auth_mode": settings.auth_mode if settings.auth_enabled else "none",
+            "tenant_enforcement": settings.tenant_enabled,
         }
 
     return _invoke("identity.whoami", "platform:read", resolve)
@@ -103,29 +159,38 @@ def whoami() -> dict[str, Any]:
 
 @mcp.tool()
 def list_data_sources() -> list[str]:
-    """List data sources that this MCP server can inspect."""
-    return _invoke("catalog.list_sources", "catalog:read", service.list_sources)
+    """List data sources visible to the current tenant."""
+
+    def resolve() -> list[str]:
+        return tenant_policy.filter_sources(
+            current_principal(),
+            service.list_sources(),
+        )
+
+    return _invoke("catalog.list_sources", "catalog:read", resolve)
 
 
 @mcp.tool()
 def list_schemas(source: str) -> list[str]:
-    """List schemas in a configured data source."""
+    """List schemas in a configured and tenant-authorized data source."""
     return _invoke(
         "catalog.list_schemas",
         "catalog:read",
         lambda: service.list_schemas(source),
         {"source": source},
+        source=source,
     )
 
 
 @mcp.tool()
 def list_tables(source: str, schema: str) -> list[str]:
-    """List tables or views in a schema."""
+    """List tables or views in a tenant-authorized schema."""
     return _invoke(
         "catalog.list_tables",
         "catalog:read",
         lambda: service.list_tables(source, schema),
         {"source": source, "schema": schema},
+        source=source,
     )
 
 
@@ -137,6 +202,7 @@ def describe_table(source: str, schema: str, table: str) -> dict[str, Any]:
         "catalog:read",
         lambda: service.describe_table(source, schema, table).model_dump(),
         {"source": source, "schema": schema, "table": table},
+        source=source,
     )
 
 
@@ -148,28 +214,31 @@ def table_statistics(source: str, schema: str, table: str) -> dict[str, Any]:
         "catalog:read",
         lambda: service.table_statistics(source, schema, table).model_dump(),
         {"source": source, "schema": schema, "table": table},
+        source=source,
     )
 
 
 @mcp.tool()
 def get_table_metadata(source: str, schema: str, table: str) -> dict[str, Any]:
-    """Return governed table metadata such as object type, owner, columns, and projections."""
+    """Return governed metadata for a tenant-authorized table or view."""
     return _invoke(
         "metadata.get_table",
         "catalog:read",
         lambda: service.get_table_metadata(source, schema, table).model_dump(),
         {"source": source, "schema": schema, "table": table},
+        source=source,
     )
 
 
 @mcp.tool()
 def get_table_lineage(source: str, schema: str, table: str) -> dict[str, Any]:
-    """Return catalog-backed upstream lineage for a table or view."""
+    """Return catalog-backed upstream lineage within the tenant source boundary."""
     return _invoke(
         "lineage.get_table",
         "lineage:read",
         lambda: service.get_table_lineage(source, schema, table).model_dump(),
         {"source": source, "schema": schema, "table": table},
+        source=source,
     )
 
 
@@ -186,12 +255,13 @@ def analyze_sql_lineage(sql: str) -> dict[str, Any]:
 
 @mcp.tool()
 def explain_sql(source: str, sql: str) -> str:
-    """Explain a read-only SQL statement after SQLGlot AST policy validation."""
+    """Explain tenant-authorized read-only SQL after SQLGlot AST validation."""
     return _invoke(
         "sql.explain",
         "sql:explain",
         lambda: service.explain_sql(source, sql),
         {"source": source, "sql_fingerprint": sql_fingerprint(sql)},
+        source=source,
     )
 
 
@@ -243,7 +313,7 @@ def search_runbooks(query: str, limit: int = 10) -> list[dict[str, Any]]:
 @mcp.resource(
     "platform://capabilities",
     title="Data Platform MCP Capabilities",
-    description="Active adapters, sources, version, auth, audit, and safety mode.",
+    description="Active adapters, identity controls, telemetry, and safety mode.",
     mime_type="application/json",
 )
 def platform_capabilities() -> dict[str, object]:
@@ -252,7 +322,10 @@ def platform_capabilities() -> dict[str, object]:
         capabilities.update(
             {
                 "auth_enabled": settings.auth_enabled,
+                "auth_mode": settings.auth_mode if settings.auth_enabled else "none",
+                "tenant_enforcement": settings.tenant_enabled,
                 "audit_enabled": settings.audit_enabled,
+                "otel_enabled": settings.otel_enabled,
             }
         )
         return capabilities
@@ -263,7 +336,7 @@ def platform_capabilities() -> dict[str, object]:
 @mcp.resource(
     "catalog://{source}/{schema}/{table}",
     title="Table Catalog Entry",
-    description="Read a governed table metadata entry as an MCP resource.",
+    description="Read a tenant-authorized governed table metadata entry.",
     mime_type="application/json",
 )
 def catalog_table(source: str, schema: str, table: str) -> dict[str, Any]:
@@ -272,6 +345,7 @@ def catalog_table(source: str, schema: str, table: str) -> dict[str, Any]:
         "catalog:read",
         lambda: service.get_table_metadata(source, schema, table).model_dump(),
         {"source": source, "schema": schema, "table": table},
+        source=source,
     )
 
 
@@ -304,10 +378,11 @@ def data_discovery(source: str, schema: str, question: str) -> str:
         lambda: (
             f"Answer this data discovery question for source '{source}', schema '{schema}': "
             f"{question}. Use list_tables, get_table_metadata, and get_table_lineage before "
-            "proposing SQL. If SQL is needed, keep it read-only, inspect dependencies with "
-            "analyze_sql_lineage, and validate it with explain_sql."
+            "proposing SQL. Stay within the caller's tenant-authorized sources. If SQL is "
+            "needed, keep it read-only and validate it with explain_sql."
         ),
         {"source": source, "schema": schema, "question_length": len(question)},
+        source=source,
     )
 
 

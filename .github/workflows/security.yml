@@ -32,3 +32,18 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+
+  kubernetes-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Render Kubernetes resources
+        run: |
+          helm template dpmcp deploy/helm/data-platform-mcp-server             -f tests/helm-values.yaml > rendered.yaml
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: rendered.yaml
+          severity: CRITICAL,HIGH
+          exit-code: "1"

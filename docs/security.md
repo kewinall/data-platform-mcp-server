@@ -1,106 +1,127 @@
 # Security Design / 安全設計
 
-## Threat model / 威脅模型
+## Threat model
 
-The MCP server is an automation bridge between an LLM host and enterprise systems. A prompt mistake, prompt injection, or compromised MCP client must not automatically become a database or orchestrator write operation.
+The MCP server bridges LLM clients and enterprise data systems. Prompt injection, a compromised MCP client, stolen application credentials, or an overly broad network path must not automatically become a data-platform write path.
 
-MCP Server 可能成為 LLM Host 與企業資料平台之間的自動化橋接層，因此安全設計必須假設 Prompt、Client 或上游資料可能是不可信輸入。
+## 1. No destructive MCP tools
 
-## Defense in depth / 多層防護
+There is no tool for database mutation, DDL, privilege changes, DAG trigger/clear, log deletion, or secret modification.
 
-### 1. No destructive tools
+## 2. SQL policy
 
-There is no MCP tool for INSERT/UPDATE/DELETE, DDL, DAG trigger, DAG clear, secret update, or destructive platform operations.
+SQLGlot parses a single statement and rejects write/DDL expressions, `SELECT INTO`, write CTEs, and multi-statements.
 
-### 2. SQLGlot AST policy
+Database-side controls remain enabled:
 
-`ensure_read_only_sql()` parses SQL instead of relying only on keyword prefixes.
+- PostgreSQL: `default_transaction_read_only=on`
+- Vertica: `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`
 
-Rejected patterns include:
+## 3. Authentication
 
-- DML: INSERT / UPDATE / DELETE / MERGE
-- DDL: CREATE / ALTER / DROP / TRUNCATE
-- privilege/transaction changes
-- `SELECT ... INTO`
-- multi-statement SQL
-- write expressions hidden inside CTEs
-
-`SHOW` and `EXPLAIN <read-only-query>` remain supported.
-
-### 3. Database-side read-only mode
-
-PostgreSQL:
+Streamable HTTP can use either:
 
 ```text
-default_transaction_read_only=on
-statement_timeout=<configured milliseconds>
+static token -> demo/reference
+OIDC JWT     -> production-oriented resource-server mode
 ```
 
-Vertica:
+OIDC validation checks:
 
-```sql
-SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;
-```
+- JWKS signature
+- algorithm allow-list
+- issuer
+- audience
+- expiration
+- subject
 
-The database account itself must still have least privilege. Application validation is not a replacement for database authorization.
+The MCP SDK remains responsible for the HTTP bearer gate and protected resource metadata behavior.
 
-### 4. MCP bearer authentication
+## 4. RBAC
 
-When:
-
-```bash
-DPMCP_TRANSPORT=streamable-http
-DPMCP_AUTH_ENABLED=true
-```
-
-the server configures MCP Python SDK v2 `TokenVerifier` + `AuthSettings`. Invalid/missing bearer tokens are rejected by the HTTP authorization layer before tool execution.
-
-Authentication is HTTP-only. `stdio` is protected by the operating-system/process boundary rather than bearer headers.
-
-### 5. RBAC
-
-Roles are mapped to scopes:
-
-| Role | Scopes |
+| Role | Capabilities |
 |---|---|
-| `reader` | `platform:read`, `catalog:read`, `runbook:read` |
-| `analyst` | reader + `sql:explain`, `lineage:read` |
-| `operator` | analyst + `operations:read`, `logs:read` |
-| `admin` | all current read-only scopes + `audit:read` |
+| reader | platform/catalog/runbook |
+| analyst | reader + SQL explain + lineage |
+| operator | analyst + operations/logs |
+| admin | all current read-only scopes + audit |
 
-Every MCP tool calls `require_scope()` before the backend action.
+Unknown OIDC roles are rejected.
 
-### 6. Audit
+## 5. Tenant-aware source isolation
 
-Every tool/resource/prompt invocation records:
+`DPMCP_TENANT_ALLOWED_SOURCES_JSON` maps a tenant identity to allowed catalog source names.
 
-- UTC timestamp
-- action name
-- actor / subject
+```json
+{
+  "tenant-a": ["postgres"],
+  "tenant-b": ["vertica"]
+}
+```
+
+The policy is checked before schema/table/metadata/lineage/EXPLAIN calls.
+
+This is **source-level isolation**, not row-level security. Production databases should still enforce schema/table/row policies appropriate to the organization.
+
+## 6. Audit
+
+Audit contains:
+
+- timestamp
+- actor
+- subject
+- tenant
 - role
+- action
 - outcome
 - latency
-- bounded non-secret metadata
-- exception type on failure
+- error type
+- safe metadata
+- trace ID when available
 
-Raw bearer tokens are never audit fields. SQL statements are represented by a SHA-256-derived short fingerprint instead of raw SQL text.
+Bearer tokens are never audit fields. SQL uses a fingerprint instead of the raw statement.
 
-### 7. Read-only integrations
+## 7. OpenTelemetry
 
-- Airflow: GET-only `/api/v2` calls
-- OpenSearch: search only
-- Loki: `query_range` only
-- PostgreSQL: catalog + EXPLAIN only
-- Vertica: system catalog + EXPLAIN only
+Telemetry exports action/role/tenant/outcome and latency. Raw SQL, DSNs, passwords, and tokens are excluded.
 
-## Static token configuration
+## 8. Kubernetes hardening
 
-Static tokens are a portfolio/reference implementation for resource-server authorization. Do not commit token values.
+The Helm chart defaults include:
 
-```bash
-export DPMCP_API_TOKENS_JSON='{
-  "replace-me":{"client_id":"catalog-agent","role":"reader"}
-}'
-```
+- non-root user
+- read-only root filesystem
+- `allowPrivilegeEscalation: false`
+- `capabilities.drop: [ALL]`
+- `seccompProfile: RuntimeDefault`
+- ServiceAccount token automount disabled
+- CPU/memory requests and limits
+- NetworkPolicy
+- PodDisruptionBudget
 
-For v0.4 production delivery, replace static tokens with OIDC/JWT validation or RFC 7662 introspection against Keycloak, Entra ID, Auth0, or another authorization server.
+The included namespace example applies Kubernetes Pod Security `restricted`.
+
+## 9. NetworkPolicy
+
+Default application egress is DNS only. Production values must explicitly allow required destinations.
+
+Do not set `networkPolicy.egress.allowAll=true` merely to bypass configuration unless the surrounding network architecture supplies equivalent controls.
+
+## 10. Secrets
+
+Use environment variables from a Kubernetes Secret or External Secrets Operator. Do not commit credentials into values files.
+
+The included Azure example uses Key Vault + Workload Identity through External Secrets Operator.
+
+## 11. Defense in depth
+
+Application validation is not an authorization boundary by itself. Production environments must additionally use:
+
+- database least privilege
+- TLS
+- network segmentation
+- identity-provider policy
+- secret rotation
+- Kubernetes admission controls
+- centralized audit/monitoring
+- vulnerability management

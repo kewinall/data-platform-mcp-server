@@ -1,4 +1,4 @@
-.PHONY: install lint test run run-http docker
+.PHONY: install lint test run run-http docker platform-check airgap
 
 install:
 	python -m pip install -e '.[dev]'
@@ -17,3 +17,11 @@ run-http:
 
 docker:
 	docker compose up --build
+
+platform-check:
+	bash -n scripts/*.sh
+	helm lint deploy/helm/data-platform-mcp-server -f tests/helm-values.yaml
+	helm template dpmcp deploy/helm/data-platform-mcp-server -f tests/helm-values.yaml >/dev/null
+
+airgap:
+	bash scripts/build-airgap-bundle.sh

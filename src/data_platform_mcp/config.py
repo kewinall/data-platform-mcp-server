@@ -40,12 +40,30 @@ class Settings(BaseSettings):
     loki_query: str = '{job=~".+"} |= "{query}"'
 
     auth_enabled: bool = False
+    auth_mode: Literal["static", "oidc"] = "static"
     auth_issuer_url: str = "https://auth.example.com"
     auth_resource_url: str = "http://127.0.0.1:8000/mcp"
     api_tokens_json: str | None = None
 
+    oidc_jwks_url: str | None = None
+    oidc_audience: str | None = None
+    oidc_algorithms: str = "RS256"
+    oidc_role_claim: str = "roles"
+    oidc_tenant_claim: str = "tenant"
+    oidc_client_id_claim: str = "azp"
+    oidc_role_map_json: str | None = None
+
+    tenant_enabled: bool = False
+    tenant_allowed_sources_json: str | None = None
+
     audit_enabled: bool = True
     audit_log_path: str | None = None
+
+    otel_enabled: bool = False
+    otel_service_name: str = "data-platform-mcp-server"
+    otel_exporter_otlp_endpoint: str | None = None
+    otel_metric_export_interval_ms: int = 60000
+    deployment_environment: str = "local"
 
 
 @lru_cache

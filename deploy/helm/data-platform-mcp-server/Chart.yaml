@@ -1,0 +1,9 @@
+apiVersion: v2
+name: data-platform-mcp-server
+description: Production Helm chart for the Data Platform MCP Server
+type: application
+version: 0.4.0
+appVersion: "0.4.0"
+home: https://github.com/kewinall/data-platform-mcp-server
+sources:
+  - https://github.com/kewinall/data-platform-mcp-server

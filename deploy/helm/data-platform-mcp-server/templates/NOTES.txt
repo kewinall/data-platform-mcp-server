@@ -1,0 +1,13 @@
+Data Platform MCP Server {{ .Chart.AppVersion }} has been installed.
+
+MCP service:
+  {{ include "data-platform-mcp-server.fullname" . }}:{{ .Values.service.port }}
+
+For local testing:
+  kubectl port-forward svc/{{ include "data-platform-mcp-server.fullname" . }} 8000:{{ .Values.service.port }}
+
+Then connect an MCP client to:
+  http://127.0.0.1:8000/mcp
+
+NetworkPolicy is enabled by default. Add explicit egress rules for PostgreSQL, Vertica,
+OIDC/JWKS, Airflow, OpenSearch, Loki, and OTLP Collector endpoints used by your deployment.

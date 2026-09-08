@@ -21,7 +21,10 @@ async def test_mcp_lists_tools_resources_and_prompts() -> None:
         assert "platform://capabilities" in resource_uris
 
         templates = await client.list_resource_templates()
-        assert any("catalog://" in str(item.uri_template) for item in templates.resource_templates)
+        assert any(
+            "catalog://" in str(item.uri_template)
+            for item in templates.resource_templates
+        )
 
         prompts = await client.list_prompts()
         prompt_names = {prompt.name for prompt in prompts.prompts}
@@ -42,3 +45,5 @@ async def test_mcp_reads_resource_renders_prompt_and_reports_local_identity() ->
 
         identity = await client.call_tool("whoami", {})
         assert identity.structured_content["client_id"] == "local-process"
+        assert identity.structured_content["tenant"] == "local"
+        assert identity.structured_content["tenant_enforcement"] is False

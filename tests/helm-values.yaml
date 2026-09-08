@@ -1,0 +1,37 @@
+config:
+  DPMCP_MODE: multi
+  DPMCP_AUTH_ENABLED: "true"
+  DPMCP_AUTH_MODE: oidc
+  DPMCP_TENANT_ENABLED: "true"
+  DPMCP_OTEL_ENABLED: "true"
+  DPMCP_AUTH_ISSUER_URL: https://idp.example.com/tenant/v2.0
+  DPMCP_AUTH_RESOURCE_URL: https://mcp.example.com/mcp
+  DPMCP_OIDC_JWKS_URL: https://idp.example.com/keys
+  DPMCP_OIDC_AUDIENCE: api://data-platform-mcp
+  DPMCP_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability:4318
+
+externalSecret:
+  enabled: true
+  secretStoreRef:
+    name: ci-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: DPMCP_POSTGRES_DSN
+      remoteRef:
+        key: ci/postgres-dsn
+    - secretKey: DPMCP_VERTICA_DSN
+      remoteRef:
+        key: ci/vertica-dsn
+    - secretKey: DPMCP_TENANT_ALLOWED_SOURCES_JSON
+      remoteRef:
+        key: ci/tenant-policy
+
+networkPolicy:
+  egress:
+    additionalRules:
+      - to:
+          - ipBlock:
+              cidr: 10.0.0.10/32
+        ports:
+          - protocol: TCP
+            port: 5432

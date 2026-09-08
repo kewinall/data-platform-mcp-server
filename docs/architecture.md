@@ -1,64 +1,88 @@
 # Architecture / 架構
 
-## 核心設計 / Core design
-
-`data-platform-mcp-server` 將 MCP-facing capability、authorization/audit policy 與 backend integration 分離。MCP Tool 不直接連接 PostgreSQL、Vertica、Airflow 或 log backend，而是透過 `DataPlatformService` 與 Adapter Protocol。
-
-The project separates MCP-facing capabilities, authorization/audit policy, and backend-specific integrations. Tools call `DataPlatformService`; adapters encapsulate external systems.
+## Application layers
 
 ```text
 MCP Host
   -> MCPServer v2
-    -> Bearer Auth (HTTP only)
-      -> RBAC scope check
-        -> Audit wrapper
-          -> DataPlatformService
-            -> CatalogAdapter
-              -> Demo
-              -> PostgreSQL
-              -> Vertica
-              -> Composite(PostgreSQL + Vertica)
-            -> OperationsAdapter
-              -> Demo / Airflow 3
-            -> LogSearchAdapter
-              -> Demo / OpenSearch / Loki
-            -> RunbookAdapter
+    -> Bearer authentication
+       -> StaticTokenVerifier or OidcJwtVerifier
+    -> RBAC scope check
+    -> TenantPolicy
+    -> AuditLogger + OpenTelemetry
+    -> DataPlatformService
+       -> CatalogAdapter
+          -> Demo
+          -> PostgreSQL
+          -> Vertica
+          -> Composite
+       -> OperationsAdapter
+          -> Demo / Airflow
+       -> LogSearchAdapter
+          -> Demo / OpenSearch / Loki
+       -> RunbookAdapter
 ```
 
-## Metadata and lineage
+The MCP protocol surface does not know how a database is implemented. Backend-specific behavior is isolated in adapters.
 
-Two complementary lineage paths are provided:
-
-1. **Catalog-backed lineage** — backend metadata such as Vertica `v_catalog.view_tables`.
-2. **SQL-derived lineage** — SQLGlot AST extraction of referenced input tables and CTEs.
-
-This separation makes it clear whether lineage is an observed catalog relationship or an inferred relationship from SQL text.
-
-## Catalog routing
-
-`DPMCP_MODE=multi` constructs a `CompositeCatalogAdapter`. Each backend advertises a unique source name, and the composite routes the call without exposing backend-specific behavior to MCP tools.
+## Authorization model
 
 ```text
-list_data_sources()
-  -> ["postgres", "vertica"]
-
-get_table_metadata("vertica", "mart", "daily_sales")
-  -> VerticaCatalogAdapter
-
-get_table_metadata("postgres", "public", "orders")
-  -> PostgresCatalogAdapter
+JWT / static token
+      |
+      v
+ Principal
+      |
+      +--> role -> scopes -> operation permission
+      |
+      +--> tenant -> allowed sources -> catalog boundary
 ```
 
-## Security path
+Example:
 
 ```text
-HTTP request
- -> MCP SDK BearerAuthBackend
- -> required platform:read scope
- -> per-tool RBAC scope
- -> audit start
- -> read-only service action
- -> audit outcome + latency
+role=analyst
+tenant=tenant-a
+tenant-a sources=[postgres]
+
+get_table_metadata(postgres, ...) -> allowed
+explain_sql(postgres, ...)       -> allowed
+get_table_metadata(vertica, ...) -> denied
+list_dags()                      -> denied (analyst lacks operations:read)
 ```
 
-Database-side read-only mode remains enabled even after application-layer SQL validation.
+## Lineage model
+
+Two forms remain separate:
+
+1. catalog-backed lineage from database metadata;
+2. SQL-derived lineage from SQLGlot AST parsing.
+
+This prevents inferred SQL relationships from being presented as catalog-observed facts.
+
+## OpenTelemetry
+
+Every MCP invocation is wrapped in an application span. Low-cardinality invocation metrics are also emitted. A trace ID is copied into the audit record for correlation.
+
+Sensitive values such as bearer tokens, raw SQL, DSNs, and passwords are not telemetry attributes.
+
+## Kubernetes
+
+```text
+Namespace (Pod Security Restricted)
+       |
+Deployment -> Service -> MCP clients
+       |
+       +-> ConfigMap
+       +-> Secret / ExternalSecret
+       +-> NetworkPolicy
+       +-> PDB
+       +-> optional HPA
+       |
+       +-> PostgreSQL / Vertica
+       +-> IdP/JWKS
+       +-> Airflow / logs
+       +-> OTLP Collector
+```
+
+The application ServiceAccount token is disabled because the server itself does not require Kubernetes API access.

@@ -25,12 +25,14 @@ class AuditLogger:
         duration_ms: float,
         metadata: dict[str, Any] | None = None,
         error_type: str | None = None,
+        trace_id: str | None = None,
     ) -> dict[str, Any]:
         event = {
             "timestamp": datetime.now(UTC).isoformat(),
             "action": action,
             "actor": principal.client_id,
             "subject": principal.subject,
+            "tenant": principal.tenant,
             "role": principal.role,
             "outcome": outcome,
             "duration_ms": round(duration_ms, 3),
@@ -38,6 +40,8 @@ class AuditLogger:
         }
         if error_type:
             event["error_type"] = error_type
+        if trace_id:
+            event["trace_id"] = trace_id
 
         if not self.enabled:
             return event

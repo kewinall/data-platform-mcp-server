@@ -1,0 +1,121 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/kewinall/data-platform-mcp-server
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+config:
+  DPMCP_MODE: demo
+  DPMCP_OPERATIONS_MODE: demo
+  DPMCP_LOGS_MODE: demo
+  DPMCP_TRANSPORT: streamable-http
+  DPMCP_HOST: 0.0.0.0
+  DPMCP_PORT: "8000"
+  DPMCP_LOG_LEVEL: INFO
+  DPMCP_MAX_ROWS: "100"
+  DPMCP_DEPLOYMENT_ENVIRONMENT: kubernetes
+  DPMCP_AUTH_ENABLED: "false"
+  DPMCP_AUTH_MODE: oidc
+  DPMCP_TENANT_ENABLED: "false"
+  DPMCP_AUDIT_ENABLED: "true"
+  DPMCP_OTEL_ENABLED: "false"
+
+existingSecret: ""
+
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: ""
+    kind: ClusterSecretStore
+  targetSecretName: ""
+  data: []
+  # Example:
+  # data:
+  #   - secretKey: DPMCP_POSTGRES_DSN
+  #     remoteRef:
+  #       key: data-platform/postgres-dsn
+  #   - secretKey: DPMCP_OIDC_AUDIENCE
+  #     remoteRef:
+  #       key: data-platform/oidc-audience
+
+networkPolicy:
+  enabled: true
+  ingress:
+    sameNamespace: true
+  egress:
+    allowAll: false
+    dns:
+      enabled: true
+      namespace: kube-system
+    additionalRules: []
+    # Example PostgreSQL rule:
+    # additionalRules:
+    #   - to:
+    #       - ipBlock:
+    #           cidr: 10.20.0.10/32
+    #     ports:
+    #       - protocol: TCP
+    #         port: 5432
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+topologySpreadConstraints: []
+
+terminationGracePeriodSeconds: 30

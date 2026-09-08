@@ -54,10 +54,12 @@ def test_demo_explain_is_safe() -> None:
     assert "DEMO PLAN" in plan
 
 
-def test_capabilities_are_read_only() -> None:
+def test_capabilities_are_production_delivery_ready() -> None:
     capabilities = build_service().capabilities()
-    assert capabilities["version"] == "0.3.0"
+    assert capabilities["version"] == "0.4.0"
     assert capabilities["safety"] == "read-only"
     assert capabilities["sql_policy"] == "sqlglot-ast"
-    assert capabilities["metadata"] is True
-    assert capabilities["lineage"] is True
+    assert capabilities["multi_tenancy"] is True
+    assert capabilities["oidc"] is True
+    assert capabilities["opentelemetry"] is True
+    assert capabilities["kubernetes"] is True

@@ -30,11 +30,11 @@ class DataPlatformService:
         self.runbooks = runbooks
 
     def health(self) -> dict[str, str]:
-        return {"status": "ok", "service": "data-platform-mcp-server", "version": "0.3.0"}
+        return {"status": "ok", "service": "data-platform-mcp-server", "version": "0.4.0"}
 
     def capabilities(self) -> dict[str, object]:
         return {
-            "version": "0.3.0",
+            "version": "0.4.0",
             "catalog_sources": self.catalog.list_sources(),
             "catalog_adapter": type(self.catalog).__name__,
             "operations_adapter": type(self.operations).__name__,
@@ -42,6 +42,10 @@ class DataPlatformService:
             "metadata": True,
             "lineage": True,
             "sql_policy": "sqlglot-ast",
+            "multi_tenancy": True,
+            "oidc": True,
+            "opentelemetry": True,
+            "kubernetes": True,
             "safety": "read-only",
         }
 

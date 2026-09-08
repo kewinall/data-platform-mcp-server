@@ -40,3 +40,20 @@ jobs:
           context: .
           push: false
           tags: data-platform-mcp-server:ci
+
+  platform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
+      - name: Helm lint
+        run: helm lint deploy/helm/data-platform-mcp-server -f tests/helm-values.yaml
+      - name: Helm render
+        run: |
+          helm template dpmcp deploy/helm/data-platform-mcp-server             -f tests/helm-values.yaml > rendered.yaml
+          test -s rendered.yaml
+          grep -q "kind: NetworkPolicy" rendered.yaml
+          grep -q "kind: ExternalSecret" rendered.yaml
+          grep -q "readOnlyRootFilesystem: true" rendered.yaml
