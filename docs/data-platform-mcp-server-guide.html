@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Data Platform MCP Server v0.4 - 使用者教學、企業架構與面試作品導覽">
-<title>Data Platform MCP Server v0.4｜使用指南 × 面試作品導覽</title>
+<meta name="description" content="Data Platform MCP Server v0.5 - ETL Metadata / Lineage Integration、使用者教學、企業架構與面試作品導覽">
+<title>Data Platform MCP Server v0.5｜使用指南 × 面試作品導覽</title>
 <style>
 :root{--bg:#0b1020;--panel:#151d33;--panel2:#1b2642;--text:#edf3ff;--muted:#9fb0ce;--line:#2b3a5d;--accent:#6ee7ff;--accent2:#8b7cff;--good:#61d68b;--warn:#ffcf66;--code:#08101f;--max:1180px}
 html[data-theme="light"]{--bg:#f5f7fb;--panel:#fff;--panel2:#f1f5fb;--text:#17213a;--muted:#61708b;--line:#d9e2ef;--accent:#087ea4;--accent2:#6554c0;--good:#16844d;--warn:#9a6400;--code:#f3f6fb}
@@ -26,10 +26,10 @@ footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color
 </head>
 <body>
 <div id="progress"></div>
-<header><div class="top"><div class="brand">● Data Platform MCP Server</div><nav class="nav"><a href="#interviewer">面試官速讀</a><a href="#architecture">架構</a><a href="#tools">Tools</a><a href="#security">Security</a><a href="#deploy">Kubernetes</a><a href="#quickstart">使用方式</a><a href="#cicd">CI/CD</a><a href="#interview">面試重點</a></nav><button id="theme">◐</button></div></header>
+<header><div class="top"><div class="brand">● Data Platform MCP Server</div><nav class="nav"><a href="#interviewer">面試官速讀</a><a href="#architecture">架構</a><a href="#etlmeta">ETL Metadata</a><a href="#tools">Tools</a><a href="#security">Security</a><a href="#deploy">Kubernetes</a><a href="#quickstart">使用方式</a><a href="#cicd">CI/CD</a><a href="#interview">面試重點</a></nav><button id="theme">◐</button></div></header>
 <main class="wrap">
 <section class="hero">
-<div><span class="tag">v0.4.0 · Enterprise MCP / Data Platform</span><h1>讓 AI Agent <span>安全理解資料平台</span></h1><p class="lead">Production-oriented MCP Server 參考實作：把 PostgreSQL、Vertica、Airflow、Metadata、Lineage、Logs 與 Runbooks 轉成標準 MCP capabilities，並加入 OIDC、RBAC、Multi-tenancy、Audit、OpenTelemetry、Kubernetes / Helm 與 Air-gapped Delivery。</p><div class="cta"><a class="btn primary" href="#interviewer">5 分鐘了解專案</a><a class="btn" href="#quickstart">使用方式</a><a class="btn" href="https://github.com/kewinall/data-platform-mcp-server">GitHub ↗</a><a class="btn" href="https://github.com/kewinall/data-platform-mcp-server/releases/tag/v0.4.0">Release ↗</a></div><span class="pill">MCP SDK v2</span><span class="pill">PostgreSQL</span><span class="pill">Vertica</span><span class="pill">Airflow 3</span><span class="pill">SQLGlot</span><span class="pill">OIDC/JWT</span><span class="pill">OpenTelemetry</span><span class="pill">Kubernetes</span><span class="pill">Helm</span></div>
+<div><span class="tag">v0.5.0 · ETL Metadata / Lineage Integration</span><h1>讓 AI Agent <span>安全理解資料平台</span></h1><p class="lead">Production-oriented MCP Server 參考實作：把 PostgreSQL、Vertica、Airflow、Metadata、Lineage、Logs、Runbooks 與 producer-owned ETL metadata 轉成標準 MCP capabilities，並加入 OIDC、RBAC、Multi-tenancy、Audit、OpenTelemetry、Kubernetes / Helm 與 Air-gapped Delivery。</p><div class="cta"><a class="btn primary" href="#interviewer">5 分鐘了解專案</a><a class="btn" href="#quickstart">使用方式</a><a class="btn" href="https://github.com/kewinall/data-platform-mcp-server">GitHub ↗</a><a class="btn" href="https://github.com/kewinall/data-platform-mcp-server/releases/tag/v0.5.0">Release ↗</a></div><span class="pill">MCP SDK v2</span><span class="pill">PostgreSQL</span><span class="pill">Vertica</span><span class="pill">Airflow 3</span><span class="pill">SQLGlot</span><span class="pill">OIDC/JWT</span><span class="pill">OpenTelemetry</span><span class="pill">Kubernetes</span><span class="pill">Helm</span></div>
 <div class="card"><div class="kpi">One sentence pitch</div><h3>不是讓 LLM 直接連 DB，而是加一層「受控、可稽核、可治理」的 MCP Data Platform Gateway。</h3><pre># MCP Host asks...
 › 哪些資料表與 daily_sales 有關？
 
@@ -42,7 +42,7 @@ footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color
 
 # No destructive write tool exists</pre></div>
 </section>
-<div class="stats"><div class="stat"><strong>15</strong><span>MCP Tools</span></div><div class="stat"><strong>2</strong><span>Database Adapters</span></div><div class="stat"><strong>4</strong><span>RBAC Roles</span></div><div class="stat"><strong>v0.4</strong><span>Production Delivery milestone</span></div></div>
+<div class="stats"><div class="stat"><strong>21</strong><span>MCP Tools</span></div><div class="stat"><strong>2</strong><span>Database Adapters</span></div><div class="stat"><strong>4</strong><span>RBAC Roles</span></div><div class="stat"><strong>v0.5</strong><span>ETL Metadata Integration milestone</span></div></div>
 
 <section id="interviewer"><div class="head"><h2>面試官 5 分鐘速讀</h2><p>先回答「為什麼值得看」，再進入實作細節。</p></div><div class="grid3">
 <div class="card"><div class="kpi">Problem</div><h3>LLM 不該直接拿 DB 權限</h3><p class="muted">直接暴露資料庫、排程器與 Logs 容易造成越權、Prompt Injection、credential expansion 與不可追蹤操作。</p></div>
@@ -79,6 +79,24 @@ footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color
   <div class="callout" style="margin-top:16px"><strong>Interview signal：</strong>安全不是 system prompt，而是 Tool surface、AST policy、database read-only、RBAC、Tenant 與 Audit 的多層工程控制。</div>
 </section>
 
+
+<section id="etlmeta"><div class="head"><h2>ETL Metadata / Lineage Integration</h2><p>enterprise-etl-platform 產生 truth；MCP Server 只提供 governed read-only access。</p></div>
+<div class="grid3">
+<div class="card"><div class="kpi">Producer</div><h3>enterprise-etl-platform</h3><p class="muted">Pentaho / Hop parser、normalized metadata、migration analysis、structural / inferred lineage classification。</p></div>
+<div class="card"><div class="kpi">Access Layer</div><h3>Data Platform MCP Server</h3><p class="muted">讀取 exported JSON contract，套用 scope、audit、identity、telemetry；不重新解析 KTR/KJB/Hop。</p></div>
+<div class="card"><div class="kpi">Consumers</div><h3>DataOps / MCP Hosts</h3><p class="muted">可查 pipeline、steps、dependencies、table lineage 與 metadata；RCA 與 agent reasoning 仍留在 consumer layer。</p></div>
+</div>
+<div class="callout" style="margin-top:14px"><strong>Authority rule：</strong>structural、inferred-deterministic 與 AI interpretation classification 原樣保留。MCP 不會把 AI interpretation 升格成 deterministic lineage。</div>
+<div class="card" style="margin-top:14px"><button class="copy">Copy</button><pre>export DPMCP_ETL_METADATA_DIR=/srv/etl-metadata
+export DPMCP_ETL_METADATA_MAX_FILES=500
+
+# Kubernetes Helm: existing PVC is mounted read-only
+etlMetadata:
+  enabled: true
+  existingClaim: etl-metadata
+</pre></div>
+</section>
+
 <section id="architecture"><div class="head"><h2>整體架構</h2><p>從 MCP Host 到 Data Platform backend 的完整 request path。</p></div>
 <div class="diagram"><svg viewBox="0 0 1100 540"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
 <rect class="na" x="400" y="20" width="300" height="62" rx="15"/><text class="st" x="550" y="48" text-anchor="middle">ChatGPT / Claude / Codex / MCP Host</text><text class="ss" x="550" y="68" text-anchor="middle">Streamable HTTP / stdio</text><path class="arrow" d="M550 82L550 118"/>
@@ -103,7 +121,7 @@ footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color
 <div class="tl"><h3>v0.1 · MCP Foundation</h3><p class="muted">MCP SDK v2、stdio/HTTP、Demo、PostgreSQL read-only、Docker、pytest/Ruff、Trivy。</p></div>
 <div class="tl"><h3>v0.2 · DataOps Integration</h3><p class="muted">Airflow 3、OpenSearch、Loki、MCP Resources/Prompts、protocol tests。</p></div>
 <div class="tl"><h3>v0.3 · Enterprise Data Platform</h3><p class="muted">Vertica、Composite Catalog、Metadata、Lineage、SQLGlot AST、Bearer RBAC、Audit。</p></div>
-<div class="tl"><h3>v0.4 · Production Delivery</h3><p class="muted">OIDC/JWT、Multi-tenancy、OTel、Kubernetes/Helm、External Secrets、NetworkPolicy、Air-gap、gated Release。</p></div></div></section>
+<div class="tl"><h3>v0.4 · Production Delivery</h3><p class="muted">OIDC/JWT、Multi-tenancy、OTel、Kubernetes/Helm、External Secrets、NetworkPolicy、Air-gap、gated Release。</p></div><div class="tl"><h3>v0.5 · ETL Metadata / Lineage Integration</h3><p class="muted">Producer-owned ETL metadata、six read-only tools、ETL resource、classification preservation、read-only PVC。</p></div></div></section>
 
 <section id="tools"><div class="head"><h2>MCP Tool Catalog</h2><p>可搜尋 tool / scope / purpose。</p></div><input id="filter" class="filter" placeholder="例如 lineage、catalog、logs..."><div class="tw"><table id="toolsTable"><thead><tr><th>Tool</th><th>Scope</th><th>Tenant</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>health</code></td><td><code>platform:read</code></td><td>—</td><td>health/version</td></tr>
@@ -121,9 +139,15 @@ footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color
 <tr><td><code>get_dag_status</code></td><td><code>operations:read</code></td><td>—</td><td>latest DAG state</td></tr>
 <tr><td><code>search_etl_logs</code></td><td><code>logs:read</code></td><td>—</td><td>OpenSearch/Loki log search</td></tr>
 <tr><td><code>search_runbooks</code></td><td><code>runbook:read</code></td><td>—</td><td>troubleshooting knowledge</td></tr>
-</tbody></table></div><div class="callout warn" style="margin-top:12px"><strong>邊界：</strong>v0.4 Tenant isolation 聚焦 Catalog/Data Source operations；Airflow/Logs/Runbooks 若需 tenant isolation，應擴充 policy layer 或使用 tenant-separated backends。</div></section>
+<tr><td><code>list_etl_pipelines</code></td><td><code>catalog:read</code></td><td>—</td><td>producer pipeline discovery</td></tr>
+<tr><td><code>get_etl_pipeline</code></td><td><code>catalog:read</code></td><td>—</td><td>normalized ETL contract</td></tr>
+<tr><td><code>get_etl_pipeline_steps</code></td><td><code>catalog:read</code></td><td>—</td><td>ETL step metadata</td></tr>
+<tr><td><code>get_etl_pipeline_dependencies</code></td><td><code>lineage:read</code></td><td>—</td><td>step/workflow dependencies</td></tr>
+<tr><td><code>get_etl_table_lineage</code></td><td><code>lineage:read</code></td><td>—</td><td>producer lineage + boundary</td></tr>
+<tr><td><code>search_etl_metadata</code></td><td><code>catalog:read</code></td><td>—</td><td>ETL metadata search</td></tr>
+</tbody></table></div><div class="callout warn" style="margin-top:12px"><strong>邊界：</strong>v0.5 保留 source-level tenant isolation。ETL metadata artifact 目前是 deployment-scoped；若多 tenant 共用，需先增加 tenant-aware artifact policy 或採隔離部署。</div></section>
 
-<section id="lineage"><div class="head"><h2>Metadata & Lineage</h2><p>把資料庫觀察到的事實與 SQL 推導關係刻意分開。</p></div><div class="grid2">
+<section id="lineage"><div class="head"><h2>Metadata & Lineage</h2><p>把 catalog fact、SQL AST derivation 與 ETL producer lineage 刻意分開。</p></div><div class="grid3">
 <div class="card"><div class="kpi">Catalog-backed</div><h3>資料庫觀察到的血緣</h3><p>Vertica 使用 <code>v_catalog.view_tables</code>。</p><pre>vertica.public.orders
         │
         ▼
@@ -138,7 +162,10 @@ Inputs:
 - public.orders
 - mart.customers
 CTE:
-- recent</pre></div></div></section>
+- recent</pre></div><div class="card"><div class="kpi">ETL producer</div><h3>ETL metadata lineage</h3><p>保留 <code>structural</code>、<code>inferred-deterministic</code> 與 capability boundary；AI interpretation 不冒充 deterministic truth。</p><pre>staging.orders
+      │ structural / inferred
+      ▼
+analytics.orders_enriched</pre></div></div></section>
 
 <section id="security"><div class="head"><h2>Security / Authorization</h2><p>多層控制，而不是只做登入驗證。</p></div><div class="grid3">
 <div class="card"><h3>OIDC / JWT</h3><p class="muted">JWKS signature、algorithm allow-list、issuer、audience、expiration、subject、role mapping、tenant claim。</p></div>
@@ -170,7 +197,7 @@ export DPMCP_TENANT_ALLOWED_SOURCES_JSON='{
 
 <section id="deploy"><div class="head"><h2>Kubernetes / Helm</h2><p>安全預設直接進 Chart defaults。</p></div><div class="grid3">
 <div class="card"><h3>Pod Security</h3><ul><li>runAsNonRoot</li><li>UID/GID 10001</li><li>readOnlyRootFilesystem</li><li>drop ALL capabilities</li><li>RuntimeDefault seccomp</li></ul></div>
-<div class="card"><h3>Reliability</h3><ul><li>replicas = 2</li><li>readiness/liveness</li><li>requests/limits</li><li>PDB</li><li>optional HPA</li></ul></div>
+<div class="card"><h3>Reliability</h3><ul><li>replicas = 2</li><li>ETL metadata PVC read-only mount</li><li>readiness/liveness</li><li>requests/limits</li><li>PDB</li><li>optional HPA</li></ul></div>
 <div class="card"><h3>Secrets / Network</h3><ul><li>ServiceAccount token disabled</li><li>External Secrets Operator</li><li>Azure Key Vault example</li><li>NetworkPolicy</li><li>non-DNS egress denied by default</li></ul></div></div>
 <div class="card" style="margin-top:14px"><button class="copy">Copy</button><pre>kubectl apply -f examples/kubernetes/namespace-restricted.yaml
 
@@ -227,7 +254,7 @@ verify-airgap-bundle.sh</pre></div></div></section>
 
 <section id="english"><div class="head"><h2>English Executive Summary</h2><p>For interviewers who prefer an English overview.</p></div><div class="card"><p><strong>Data Platform MCP Server</strong> is a production-oriented reference implementation that exposes enterprise data-platform capabilities to MCP-compatible AI clients without granting unrestricted backend access.</p><p>It integrates PostgreSQL, Vertica, Airflow 3, OpenSearch/Loki, metadata and lineage through adapter abstractions. The security model combines bearer/OIDC authentication, role-based scopes, tenant-aware source authorization, AST-based read-only SQL validation, database-level read-only sessions, structured audit logging, and OpenTelemetry correlation.</p><p>The production layer includes a hardened Kubernetes Helm chart, NetworkPolicy, External Secrets Operator integration, CI/Security gates, Trivy scans, and an air-gapped deployment bundle. It demonstrates a transition from Data Engineering/DataOps into MCP and AI Platform Engineering.</p></div></section>
 
-<footer><p><strong>Data Platform MCP Server v0.4.0</strong> · Portfolio / Reference Architecture</p><p><a href="https://github.com/kewinall/data-platform-mcp-server">github.com/kewinall/data-platform-mcp-server</a></p><p>Single-file HTML · CSS / SVG / JavaScript embedded · Offline readable</p></footer>
+<footer><p><strong>Data Platform MCP Server v0.5.0</strong> · Portfolio / Reference Architecture</p><p><a href="https://github.com/kewinall/data-platform-mcp-server">github.com/kewinall/data-platform-mcp-server</a></p><p>Single-file HTML · CSS / SVG / JavaScript embedded · Offline readable</p></footer>
 </main>
 <script>
 const root=document.documentElement;const saved=localStorage.getItem("dpmcp-theme");if(saved)root.dataset.theme=saved;

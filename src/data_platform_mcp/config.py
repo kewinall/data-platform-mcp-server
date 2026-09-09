@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     operations_mode: Literal["demo", "airflow"] = "demo"
     logs_mode: Literal["demo", "opensearch", "loki"] = "demo"
 
+    etl_metadata_dir: str | None = None
+    etl_metadata_max_files: int = 500
+
     transport: Literal["stdio", "streamable-http"] = "stdio"
     host: str = "0.0.0.0"
     port: int = 8000

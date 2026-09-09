@@ -4,6 +4,7 @@ from data_platform_mcp.adapters.demo import (
     DemoOperationsAdapter,
     DemoRunbookAdapter,
 )
+from data_platform_mcp.adapters.etl_metadata import DemoETLMetadataAdapter
 from data_platform_mcp.service import DataPlatformService
 
 
@@ -13,6 +14,7 @@ def build_service() -> DataPlatformService:
         operations=DemoOperationsAdapter(),
         logs=DemoLogAdapter(),
         runbooks=DemoRunbookAdapter(),
+        etl_metadata=DemoETLMetadataAdapter(),
     )
 
 
@@ -56,10 +58,29 @@ def test_demo_explain_is_safe() -> None:
 
 def test_capabilities_are_production_delivery_ready() -> None:
     capabilities = build_service().capabilities()
-    assert capabilities["version"] == "0.4.0"
+    assert capabilities["version"] == "0.5.0"
     assert capabilities["safety"] == "read-only"
     assert capabilities["sql_policy"] == "sqlglot-ast"
     assert capabilities["multi_tenancy"] is True
     assert capabilities["oidc"] is True
     assert capabilities["opentelemetry"] is True
     assert capabilities["kubernetes"] is True
+
+
+
+def test_etl_metadata_contract_flow() -> None:
+    service = build_service()
+    assert service.list_etl_pipelines() == ["legacy_order_enrichment"]
+
+    pipeline = service.get_etl_pipeline("legacy_order_enrichment")
+    assert pipeline["schema_version"] == "1.1"
+
+    steps = service.get_etl_pipeline_steps("legacy_order_enrichment")
+    assert steps[0]["name"] == "Read Orders"
+
+    dependencies = service.get_etl_pipeline_dependencies("legacy_order_enrichment")
+    assert dependencies[0]["classification"] == "structural"
+
+    lineage = service.get_etl_table_lineage("analytics.orders_enriched")
+    assert lineage["edges"]
+    assert service.search_etl_metadata("orders")

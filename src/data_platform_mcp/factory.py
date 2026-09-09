@@ -6,6 +6,10 @@ from data_platform_mcp.adapters.demo import (
     DemoOperationsAdapter,
     DemoRunbookAdapter,
 )
+from data_platform_mcp.adapters.etl_metadata import (
+    DemoETLMetadataAdapter,
+    FileETLMetadataAdapter,
+)
 from data_platform_mcp.adapters.logs import LokiLogAdapter, OpenSearchLogAdapter
 from data_platform_mcp.adapters.postgres import PostgresCatalogAdapter
 from data_platform_mcp.adapters.vertica import VerticaCatalogAdapter
@@ -88,9 +92,18 @@ def build_service(settings: Settings) -> DataPlatformService:
     else:
         logs = DemoLogAdapter()
 
+    if settings.etl_metadata_dir:
+        etl_metadata = FileETLMetadataAdapter(
+            settings.etl_metadata_dir,
+            max_files=settings.etl_metadata_max_files,
+        )
+    else:
+        etl_metadata = DemoETLMetadataAdapter()
+
     return DataPlatformService(
         catalog=catalog,
         operations=operations,
         logs=logs,
         runbooks=DemoRunbookAdapter(),
+        etl_metadata=etl_metadata,
     )

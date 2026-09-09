@@ -46,6 +46,10 @@ spec:
           env:
             - name: HOME
               value: /tmp
+            {{- if .Values.etlMetadata.enabled }}
+            - name: DPMCP_ETL_METADATA_DIR
+              value: {{ .Values.etlMetadata.mountPath | quote }}
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "data-platform-mcp-server.fullname" . }}
@@ -76,9 +80,19 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if .Values.etlMetadata.enabled }}
+            - name: etl-metadata
+              mountPath: {{ .Values.etlMetadata.mountPath | quote }}
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if .Values.etlMetadata.enabled }}
+        - name: etl-metadata
+          persistentVolumeClaim:
+            claimName: {{ required "etlMetadata.existingClaim is required" .Values.etlMetadata.existingClaim }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

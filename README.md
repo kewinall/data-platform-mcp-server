@@ -1,11 +1,11 @@
 # Data Platform MCP Server
 
-**目前版本 / Current release: v0.4.0**
+**目前版本 / Current release: v0.5.0**
 
 > **📘 Interactive Project Guide / 專案互動式說明文件**  
 > [Open Live Project Guide](https://kewinall.github.io/data-platform-mcp-server/) · [Repository HTML](docs/data-platform-mcp-server-guide.html) — 面試官速讀、架構圖、MCP Tools、Security、OIDC/RBAC/Multi-tenancy、Kubernetes/Helm、CI/CD 與使用教學集中在同一頁。
 
-> **繁體中文**：企業資料平台的 **Tool / Integration Layer**。這是一個 production-oriented Model Context Protocol (MCP) Server，將 PostgreSQL、Vertica、Airflow、Logs、Metadata 與 Lineage 以安全、標準化的 Tool Contract 提供給 AI Agent / IDE / MCP Host。
+> **繁體中文**：企業資料平台的 **Tool / Integration Layer**。這是一個 production-oriented Model Context Protocol (MCP) Server，將 PostgreSQL、Vertica、Airflow、Logs、Metadata、Lineage，以及 enterprise-etl-platform 產生的 normalized ETL metadata，以安全、標準化的 Tool Contract 提供給 AI Agent / IDE / MCP Host。
 >
 > **English**: The **Tool / Integration Layer** for an enterprise data platform. This production-oriented MCP server exposes PostgreSQL, Vertica, Airflow, logs, metadata, and lineage through standardized, governed tool contracts for AI agents, IDEs, and MCP hosts.
 
@@ -20,7 +20,8 @@ This repository primarily answers: **How can heterogeneous AI clients safely acc
 
 Portfolio responsibility boundary:
 
-- **This repository:** canonical MCP server, tool contracts, protocol transport, catalog/data-platform adapters, tool-level auth/scope/tenant controls.
+- **This repository:** canonical MCP server, tool contracts, protocol transport, catalog/data-platform adapters, producer-owned ETL metadata access, tool-level auth/scope/tenant controls.
+- [Enterprise ETL Platform](https://github.com/kewinall/enterprise-etl-platform): Pentaho/Hop parser, normalized ETL metadata, migration analysis, lineage truth, runtime and delivery lifecycle.
 - [Agentic DataOps Copilot](https://github.com/kewinall/agentic-dataops-copilot): reasoning and operations client that can consume this tool layer.
 - [Enterprise RAG Platform](https://github.com/kewinall/enterprise-rag-platform): knowledge ingestion, retrieval, grounding, citations, and evaluation.
 - [Multi-LLM AI Gateway](https://github.com/kewinall/multi-llm-ai-gateway): centralized model control plane.
@@ -42,6 +43,8 @@ Portfolio responsibility boundary:
 | **Read-only by Design + SQLGlot AST + DB read-only session** | 不依賴 Prompt 約束安全；從 tool surface、SQL policy 到 database session 多層限制 write path | 有些合法但複雜 SQL 可能被保守 policy 拒絕，需明確擴充規則 |
 | **RBAC 決定 what，Tenant Policy 決定 which source** | 把 operation authorization 與 data-source boundary 分離，較容易 audit 與 reason | v0.4 tenant isolation 是 source-level，不等同 row-level RLS |
 | **OIDC/JWT + JWKS 驗證置於 MCP resource boundary** | Enterprise identity 可集中驗 signature / issuer / audience / expiry / role mapping | IdP/JWKS availability 變成 authentication dependency |
+| **ETL metadata 採 producer-owned contract** | ETL parser/lineage truth 只存在 enterprise-etl-platform，MCP 不重做 parser | 需要維護 contract schema/version compatibility |
+| **ETL metadata volume read-only mount** | MCP deployment 只能消費已發布 artifact，避免 access layer 改寫 truth | artifact publishing/synchronization 必須由外部 delivery process 管理 |
 
 ### Production Failure & Recovery
 
@@ -52,6 +55,8 @@ Portfolio responsibility boundary:
 | OIDC token / JWKS 驗證失敗 | Authentication failure 應 fail closed，不降級成 anonymous privileged access | 恢復 IdP/JWKS 或使用明確配置的 reference auth mode |
 | Vertica / PostgreSQL backend outage | 對應 tool 回傳 bounded backend failure；不改用更高權限連線 | 恢復 backend/connection，保留同一 tool contract 後重試 |
 | Airflow / Logs backend unavailable | 相關 operations/log capability degraded，但 catalog tool boundary 仍可獨立處理 | 恢復該 Adapter backend；避免把局部 outage 擴散成整個 MCP 權限放寬 |
+| ETL metadata JSON invalid / schema unsupported | Adapter fail closed；不 fallback 成 AI 推論 | 由 ETL producer 重新發布合法 artifact |
+| ETL metadata 缺少 column lineage | capability boundary 隨結果回傳 | 改善 producer parser；MCP 不自行補 edge |
 
 ### Production Evidence
 
@@ -63,6 +68,9 @@ Portfolio responsibility boundary:
 | Observability / audit correlation 有測試 | `tests/test_observability.py`, `src/data_platform_mcp/observability.py`, `src/data_platform_mcp/audit.py` |
 | Kubernetes production baseline 可驗證 | `deploy/helm/data-platform-mcp-server/`, `tests/helm-values.yaml`, `.github/workflows/ci.yml` |
 | Security gate | `.github/workflows/security.yml` |
+| ETL metadata contract / classification | `src/data_platform_mcp/adapters/etl_metadata.py`, `tests/test_etl_metadata.py` |
+| MCP ETL tool/resource protocol | `tests/test_mcp_protocol.py`, `docs/etl-metadata-integration.md` |
+| Read-only Kubernetes artifact mount | `deploy/helm/data-platform-mcp-server/templates/deployment.yaml`, `tests/helm-values.yaml` |
 
 ### Interview Questions This Project Can Answer
 
@@ -71,6 +79,8 @@ Portfolio responsibility boundary:
 - Read-only 安全為什麼不能只靠 system prompt？
 - RBAC 與 tenant isolation 為什麼要拆開？
 - OIDC/JWKS unavailable 時應該 fail open 還是 fail closed？
+- 為什麼 ETL metadata parser 不應該複製到 MCP Server？
+- structural lineage、inferred lineage 與 AI interpretation 為什麼要原樣保留？
 
 
 ## Reference Integration / 參考整合
@@ -86,6 +96,27 @@ Portfolio responsibility boundary:
  PostgreSQL Vertica Airflow   Logs     Metadata/Lineage
 
 Other MCP hosts such as ChatGPT, Claude, Codex, or IDE agents can connect to the same server-side tool contract.
+
+## v0.5 Highlights
+
+### ETL Metadata / Lineage Access
+- normalized ETL metadata contract from enterprise-etl-platform
+- filesystem JSON + synthetic demo adapters
+- producer authority preserved
+- structural / inferred-deterministic classifications preserved
+- explicit capability-boundary propagation
+- read-only Kubernetes PVC mount
+
+### New MCP Tools
+- list_etl_pipelines
+- get_etl_pipeline
+- get_etl_pipeline_steps
+- get_etl_pipeline_dependencies
+- get_etl_table_lineage
+- search_etl_metadata
+- etl://pipeline/{pipeline_id} resource
+
+The MCP server does not parse Pentaho KTR/KJB or Apache Hop artifacts and does not perform migration correctness decisions.
 
 ## v0.4 Highlights
 
@@ -201,6 +232,12 @@ External Secrets Operator
 | `get_dag_status` | `operations:read` | latest DAG state |
 | `search_etl_logs` | `logs:read` | ETL log search |
 | `search_runbooks` | `runbook:read` | troubleshooting knowledge |
+| `list_etl_pipelines` | `catalog:read` | ETL pipeline discovery |
+| `get_etl_pipeline` | `catalog:read` | normalized producer contract |
+| `get_etl_pipeline_steps` | `catalog:read` | deterministic steps |
+| `get_etl_pipeline_dependencies` | `lineage:read` | workflow/step dependencies |
+| `get_etl_table_lineage` | `lineage:read` | producer lineage + boundary |
+| `search_etl_metadata` | `catalog:read` | ETL metadata search |
 
 ## Quick Start
 
@@ -332,7 +369,7 @@ make airgap
 Output:
 
 ```text
-dist/data-platform-mcp-server-0.4.0-airgap.tar.gz
+dist/data-platform-mcp-server-0.5.0-airgap.tar.gz
 ```
 
 It contains a Python wheelhouse, container image tar, Helm package, documentation, and SHA256 checksums.
@@ -385,6 +422,7 @@ Helm chart .tgz asset
 - **v0.2** ✅ Airflow 3 + OpenSearch/Loki + MCP resources/prompts
 - **v0.3** ✅ Vertica + metadata/lineage + AST SQL policy + RBAC/audit
 - **v0.4** ✅ Kubernetes/Helm + OIDC + multi-tenancy + OTel + External Secrets + air-gap
+- **v0.5** ✅ producer-owned ETL metadata / lineage access + read-only artifact mount
 
 Potential next work should remain focused on the **tool/integration layer**, such as OPA/Cedar policy, OpenMetadata/DataHub, signed images/SBOM provenance, Gateway API, GitOps, protocol conformance, and additional read-only platform adapters. Agent orchestration and model routing are intentionally out of scope.
 
@@ -400,6 +438,8 @@ Potential next work should remain focused on the **tool/integration layer**, suc
 - `docs/observability.md`
 - `docs/airgap.md`
 - `docs/v0.4.md`
+- `docs/etl-metadata-integration.md`
+- `docs/v0.5.md`
 - `CHANGELOG.md`
 
 ## License

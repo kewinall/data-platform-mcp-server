@@ -1,5 +1,6 @@
 from data_platform_mcp.adapters.base import (
     CatalogAdapter,
+    ETLMetadataContractAdapter,
     LogSearchAdapter,
     OperationsAdapter,
     RunbookAdapter,
@@ -23,18 +24,20 @@ class DataPlatformService:
         operations: OperationsAdapter,
         logs: LogSearchAdapter,
         runbooks: RunbookAdapter,
+        etl_metadata: ETLMetadataContractAdapter,
     ):
         self.catalog = catalog
         self.operations = operations
         self.logs = logs
         self.runbooks = runbooks
+        self.etl_metadata = etl_metadata
 
     def health(self) -> dict[str, str]:
-        return {"status": "ok", "service": "data-platform-mcp-server", "version": "0.4.0"}
+        return {"status": "ok", "service": "data-platform-mcp-server", "version": "0.5.0"}
 
     def capabilities(self) -> dict[str, object]:
         return {
-            "version": "0.4.0",
+            "version": "0.5.0",
             "catalog_sources": self.catalog.list_sources(),
             "catalog_adapter": type(self.catalog).__name__,
             "operations_adapter": type(self.operations).__name__,
@@ -46,6 +49,9 @@ class DataPlatformService:
             "oidc": True,
             "opentelemetry": True,
             "kubernetes": True,
+            "etl_metadata_contract": True,
+            "etl_metadata_pipelines": len(self.etl_metadata.list_pipelines()),
+            "etl_metadata_authority": "producer-owned",
             "safety": "read-only",
         }
 
@@ -87,3 +93,28 @@ class DataPlatformService:
 
     def search_runbooks(self, query: str, limit: int = 10) -> list[SearchHit]:
         return self.runbooks.search(query, limit)
+
+    def list_etl_pipelines(self) -> list[str]:
+        return self.etl_metadata.list_pipelines()
+
+    def get_etl_pipeline(self, pipeline_id: str) -> dict[str, object]:
+        return self.etl_metadata.get_pipeline(pipeline_id)
+
+    def get_etl_pipeline_steps(self, pipeline_id: str) -> list[dict[str, object]]:
+        return self.etl_metadata.get_pipeline_steps(pipeline_id)
+
+    def get_etl_pipeline_dependencies(
+        self,
+        pipeline_id: str,
+    ) -> list[dict[str, object]]:
+        return self.etl_metadata.get_pipeline_dependencies(pipeline_id)
+
+    def get_etl_table_lineage(self, table: str) -> dict[str, object]:
+        return self.etl_metadata.get_table_lineage(table)
+
+    def search_etl_metadata(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        return self.etl_metadata.search(query, limit)

@@ -36,6 +36,16 @@
 - Air-gapped deployment bundle
 - Helm chart release asset
 
+## v0.5 — ETL Metadata / Lineage Integration ✅
+- producer-owned normalized ETL metadata adapter
+- filesystem JSON + synthetic demo contract
+- six read-only MCP tools + ETL pipeline resource
+- structural / inferred lineage classification preservation
+- capability-boundary propagation
+- read-only Kubernetes PVC mount
+- regression / protocol / Helm CI evidence
+- explicit enterprise-etl-platform responsibility boundary
+
 ## Next ideas / 後續可延伸
 - Database-level row/column policy integration
 - OPA / Cedar authorization policy backend

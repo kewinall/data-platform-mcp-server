@@ -76,3 +76,20 @@ export DPMCP_LOKI_QUERY='{job=~".+"} |= "{query}"'
 ```
 
 Only `query_range` is used.
+
+
+## ETL Metadata Producer
+
+enterprise-etl-platform owns parsing, normalized metadata, migration analysis, and lineage truth.
+This MCP server consumes exported JSON only.
+
+~~~bash
+export DPMCP_ETL_METADATA_DIR=/srv/etl-metadata
+export DPMCP_ETL_METADATA_MAX_FILES=500
+~~~
+
+The server does not parse Pentaho KTR/KJB or Apache Hop artifacts. In Kubernetes, the Helm
+chart can mount an existing PVC read-only through etlMetadata.enabled / existingClaim.
+
+See docs/etl-metadata-integration.md for tool contracts, lineage semantics, failure behavior,
+and the multi-tenant capability boundary.
