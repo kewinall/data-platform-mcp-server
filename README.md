@@ -3,7 +3,7 @@
 **目前版本 / Current release: v0.4.0**
 
 > **📘 Interactive Project Guide / 專案互動式說明文件**  
-> [Open the single-file HTML guide](docs/data-platform-mcp-server-guide.html) — 面試官速讀、架構圖、MCP Tools、Security、OIDC/RBAC/Multi-tenancy、Kubernetes/Helm、CI/CD 與使用教學集中在同一頁。
+> [Open Live Project Guide](https://kewinall.github.io/data-platform-mcp-server/) · [Repository HTML](docs/data-platform-mcp-server-guide.html) — 面試官速讀、架構圖、MCP Tools、Security、OIDC/RBAC/Multi-tenancy、Kubernetes/Helm、CI/CD 與使用教學集中在同一頁。
 
 > **繁體中文**：企業資料平台的 **Tool / Integration Layer**。這是一個 production-oriented Model Context Protocol (MCP) Server，將 PostgreSQL、Vertica、Airflow、Logs、Metadata 與 Lineage 以安全、標準化的 Tool Contract 提供給 AI Agent / IDE / MCP Host。
 >
