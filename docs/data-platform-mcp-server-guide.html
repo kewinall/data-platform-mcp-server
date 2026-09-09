@@ -22,7 +22,7 @@ footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color
 @media(max-width:880px){.hero,.grid2,.grid3{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.nav{display:none}}@media(max-width:520px){.wrap,.top{padding-left:13px;padding-right:13px}.head{align-items:start;flex-direction:column}.lead{font-size:17px}}
 @media print{header,#progress,.copy,.cta{display:none!important}body{background:#fff;color:#111}.card,.diagram,table,details{break-inside:avoid}}
 </style>
-<link rel="stylesheet" href="https://kewinall.github.io/kewinall/assets/portfolio-guide.css?v=1.0">
+<link rel="stylesheet" href="./assets/portfolio-guide.css?v=1.0">
 </head>
 <body>
 <div id="progress"></div>
@@ -207,5 +207,5 @@ window.addEventListener("scroll",()=>{const h=document.documentElement.scrollHei
 document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{const p=b.parentElement.querySelector("pre");if(!p)return;try{await navigator.clipboard.writeText(p.innerText);const o=b.textContent;b.textContent="Copied ✓";setTimeout(()=>b.textContent=o,1200)}catch{b.textContent="Select manually"}});
 document.getElementById("filter").addEventListener("input",e=>{const q=e.target.value.toLowerCase();document.querySelectorAll("#toolsTable tbody tr").forEach(r=>r.style.display=r.innerText.toLowerCase().includes(q)?"":"none")});
 </script>
-<script defer src="https://kewinall.github.io/kewinall/assets/portfolio-guide.js?v=1.0"></script>
+<script defer src="./assets/portfolio-guide.js?v=1.0"></script>
 </body></html>
