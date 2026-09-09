@@ -13,6 +13,12 @@ async def test_mcp_lists_tools_resources_and_prompts() -> None:
             "get_table_lineage",
             "analyze_sql_lineage",
             "search_etl_logs",
+            "list_etl_pipelines",
+            "get_etl_pipeline",
+            "get_etl_pipeline_steps",
+            "get_etl_pipeline_dependencies",
+            "get_etl_table_lineage",
+            "search_etl_metadata",
             "whoami",
         } <= tool_names
 
@@ -23,6 +29,10 @@ async def test_mcp_lists_tools_resources_and_prompts() -> None:
         templates = await client.list_resource_templates()
         assert any(
             "catalog://" in str(item.uri_template)
+            for item in templates.resource_templates
+        )
+        assert any(
+            "etl://pipeline/" in str(item.uri_template)
             for item in templates.resource_templates
         )
 
@@ -42,6 +52,18 @@ async def test_mcp_reads_resource_renders_prompt_and_reports_local_identity() ->
         )
         assert prompt.messages
         assert "quality_checks" in prompt.messages[0].content.text
+
+        etl = await client.call_tool(
+            "get_etl_pipeline",
+            {"pipeline_id": "legacy_order_enrichment"},
+        )
+        assert etl.structured_content["schema_version"] == "1.1"
+
+        lineage = await client.call_tool(
+            "get_etl_table_lineage",
+            {"table": "analytics.orders_enriched"},
+        )
+        assert lineage.structured_content["edges"]
 
         identity = await client.call_tool("whoami", {})
         assert identity.structured_content["client_id"] == "local-process"
