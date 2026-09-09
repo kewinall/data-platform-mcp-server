@@ -50,6 +50,35 @@ footer{border-top:1px solid var(--line);padding-top:22px;text-align:center;color
 <div class="card"><div class="kpi">Production</div><h3>不是 Demo-only</h3><p class="muted">OIDC/JWT、RBAC、Tenant boundary、Audit、OTel、Helm、NetworkPolicy、External Secrets、Trivy 與 air-gap 都納入。</p></div></div>
 <div class="callout" style="margin-top:14px"><strong>核心工程決策：</strong>Role 決定能做什麼，Tenant 決定能碰哪個 Data Source；SQL Policy 限制語句型態，Database Session 最後仍維持 Read Only。安全不是靠 Prompt 約束，而是 Defense-in-Depth。</div></section>
 
+<section id="engineering-decisions">
+  <div class="section-head">
+    <div><span class="tag">P1 · Engineering Judgment</span><h2>Engineering Decisions & Production Evidence</h2></div>
+    <p>核心不是「把 DB 包成 Tool」，而是建立標準化、可治理、可稽核的 integration boundary，避免 AI client 直接取得 backend-native privilege。</p>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+    <div class="card"><h3>Problem</h3><p>若每個 Agent 自己連 PostgreSQL、Vertica、Airflow、Logs，identity、tenant、SQL safety、audit 與 backend error semantics 都會被複製。</p></div>
+    <div class="card"><h3>Key Decision</h3><p>MCP Tool Contract + Adapter Pattern。Role 決定 <b>what</b>，Tenant Policy 決定 <b>which source</b>，SQL safety 不靠 Prompt。</p></div>
+    <div class="card"><h3>Defense-in-Depth</h3><p>No destructive tool → SQLGlot AST policy → DB/session read-only → OIDC/RBAC/Tenant → Audit/OTel。</p></div>
+  </div>
+  <div class="table-wrap" style="margin-top:16px"><table>
+    <thead><tr><th>Decision</th><th>Benefit</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td>MCP Tool Contract</td><td>Client 不需要 backend-specific credential / API semantics</td><td>增加 protocol、schema、compatibility 維護</td></tr>
+      <tr><td>Adapter Pattern</td><td>PostgreSQL / Vertica / Airflow / Logs 可各自演進</td><td>需維護 timeout、error normalization 與 backend 差異</td></tr>
+      <tr><td>RBAC + Tenant separation</td><td>Operation 與 data-source authorization 可獨立 reason / audit</td><td>v0.4 是 source-level isolation，不等同 row-level RLS</td></tr>
+    </tbody>
+  </table></div>
+  <div class="table-wrap" style="margin-top:16px"><table>
+    <thead><tr><th>Failure Scenario</th><th>Engineering Response</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Write / malformed SQL</td><td>在 DB 執行前拒絕，DB session 本身仍維持 read-only</td><td><a href="https://github.com/kewinall/data-platform-mcp-server/blob/main/tests/test_security.py">test_security.py</a></td></tr>
+      <tr><td>OIDC / role / tenant violation</td><td>Fail closed，不降級成 anonymous privileged access</td><td><a href="https://github.com/kewinall/data-platform-mcp-server/blob/main/tests/test_auth_audit.py">test_auth_audit.py</a></td></tr>
+      <tr><td>Backend integration outage</td><td>相關 Tool bounded failure，不以更高權限連線或放寬 policy 作為 fallback</td><td><a href="https://github.com/kewinall/data-platform-mcp-server/blob/main/tests/test_integrations.py">test_integrations.py</a></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout" style="margin-top:16px"><strong>Interview signal：</strong>安全不是 system prompt，而是 Tool surface、AST policy、database read-only、RBAC、Tenant 與 Audit 的多層工程控制。</div>
+</section>
+
 <section id="architecture"><div class="head"><h2>整體架構</h2><p>從 MCP Host 到 Data Platform backend 的完整 request path。</p></div>
 <div class="diagram"><svg viewBox="0 0 1100 540"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
 <rect class="na" x="400" y="20" width="300" height="62" rx="15"/><text class="st" x="550" y="48" text-anchor="middle">ChatGPT / Claude / Codex / MCP Host</text><text class="ss" x="550" y="68" text-anchor="middle">Streamable HTTP / stdio</text><path class="arrow" d="M550 82L550 118"/>
