@@ -21,9 +21,14 @@ MCP Host
        -> LogSearchAdapter
           -> Demo / OpenSearch / Loki
        -> RunbookAdapter
+       -> ETLMetadataContractAdapter
+          -> Synthetic demo contract
+          -> Read-only exported JSON directory
 ```
 
 The MCP protocol surface does not know how a database is implemented. Backend-specific behavior is isolated in adapters.
+
+Normalized ETL metadata is also adapter-backed, but its authority is different: enterprise-etl-platform produces the ETL truth and this server only exposes that existing contract. It does not reparse Pentaho/Hop or create missing lineage.
 
 ## Authorization model
 
@@ -53,12 +58,13 @@ list_dags()                      -> denied (analyst lacks operations:read)
 
 ## Lineage model
 
-Two forms remain separate:
+Three sources remain explicit:
 
 1. catalog-backed lineage from database metadata;
-2. SQL-derived lineage from SQLGlot AST parsing.
+2. SQL-derived lineage from SQLGlot AST parsing;
+3. ETL producer lineage from enterprise-etl-platform normalized metadata.
 
-This prevents inferred SQL relationships from being presented as catalog-observed facts.
+ETL producer lineage preserves structural, inferred-deterministic, and AI interpretation classifications. The MCP layer does not promote or merge these classifications into a stronger claim. This prevents inferred or AI relationships from being presented as deterministic facts.
 
 ## OpenTelemetry
 
@@ -83,6 +89,7 @@ Deployment -> Service -> MCP clients
        +-> IdP/JWKS
        +-> Airflow / logs
        +-> OTLP Collector
+       +-> read-only ETL metadata PVC
 ```
 
 The application ServiceAccount token is disabled because the server itself does not require Kubernetes API access.
