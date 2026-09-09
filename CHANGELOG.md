@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.5.0 — 2026-09-10
+
+### Added
+- Producer-owned normalized ETL metadata adapter.
+- Filesystem JSON and synthetic demo ETL metadata backends.
+- MCP tools for pipeline discovery, steps, dependencies, table lineage, and metadata search.
+- ETL pipeline MCP resource.
+- Read-only Helm PVC mount for exported ETL metadata.
+- Regression, MCP protocol, and Helm rendering evidence.
+- ETL metadata integration documentation.
+
+### Changed
+- Health/capabilities report version 0.5.0 and ETL metadata contract availability.
+- Portfolio integration now treats enterprise-etl-platform as the ETL metadata/lineage producer.
+- MCP preserves structural and inferred classifications instead of generating stronger lineage claims.
+
+### Security
+- ETL metadata access remains read-only and passes through existing scope, audit, identity, and telemetry controls.
+- Callers cannot supply arbitrary filesystem paths.
+- Invalid/unsupported metadata fails closed.
+- Shared multi-tenant ETL metadata is explicitly out of scope until a tenant-aware artifact policy is configured.
+
 ## v0.4.0 — 2026-09-09
 
 ### Added
