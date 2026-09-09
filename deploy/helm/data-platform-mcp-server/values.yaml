@@ -57,12 +57,18 @@ config:
   DPMCP_PORT: "8000"
   DPMCP_LOG_LEVEL: INFO
   DPMCP_MAX_ROWS: "100"
+  DPMCP_ETL_METADATA_MAX_FILES: "500"
   DPMCP_DEPLOYMENT_ENVIRONMENT: kubernetes
   DPMCP_AUTH_ENABLED: "false"
   DPMCP_AUTH_MODE: oidc
   DPMCP_TENANT_ENABLED: "false"
   DPMCP_AUDIT_ENABLED: "true"
   DPMCP_OTEL_ENABLED: "false"
+
+etlMetadata:
+  enabled: false
+  existingClaim: ""
+  mountPath: /var/lib/data-platform-mcp/etl-metadata
 
 existingSecret: ""
 
