@@ -28,7 +28,7 @@ tenant_policy = TenantPolicy.from_json(
 telemetry = Telemetry(
     enabled=settings.otel_enabled,
     service_name=settings.otel_service_name,
-    service_version="0.4.0",
+    service_version="0.5.0",
     environment=settings.deployment_environment,
     endpoint=settings.otel_exporter_otlp_endpoint,
     metric_export_interval_ms=settings.otel_metric_export_interval_ms,
@@ -242,6 +242,76 @@ def get_table_lineage(source: str, schema: str, table: str) -> dict[str, Any]:
     )
 
 
+
+
+@mcp.tool()
+def list_etl_pipelines() -> list[str]:
+    """List normalized ETL pipeline IDs published by the ETL metadata producer."""
+    return _invoke(
+        "etl_metadata.list_pipelines",
+        "catalog:read",
+        service.list_etl_pipelines,
+    )
+
+
+@mcp.tool()
+def get_etl_pipeline(pipeline_id: str) -> dict[str, Any]:
+    """Return the producer-owned normalized ETL metadata document."""
+    return _invoke(
+        "etl_metadata.get_pipeline",
+        "catalog:read",
+        lambda: service.get_etl_pipeline(pipeline_id),
+        {"pipeline_id": pipeline_id},
+    )
+
+
+@mcp.tool()
+def get_etl_pipeline_steps(pipeline_id: str) -> list[dict[str, Any]]:
+    """Return deterministic ETL step metadata for one pipeline."""
+    return _invoke(
+        "etl_metadata.get_pipeline_steps",
+        "catalog:read",
+        lambda: service.get_etl_pipeline_steps(pipeline_id),
+        {"pipeline_id": pipeline_id},
+    )
+
+
+@mcp.tool()
+def get_etl_pipeline_dependencies(
+    pipeline_id: str,
+) -> list[dict[str, Any]]:
+    """Return producer-classified ETL step/workflow dependencies."""
+    return _invoke(
+        "etl_metadata.get_pipeline_dependencies",
+        "lineage:read",
+        lambda: service.get_etl_pipeline_dependencies(pipeline_id),
+        {"pipeline_id": pipeline_id},
+    )
+
+
+@mcp.tool()
+def get_etl_table_lineage(table: str) -> dict[str, Any]:
+    """Return producer-owned ETL lineage edges and capability boundaries."""
+    return _invoke(
+        "etl_metadata.get_table_lineage",
+        "lineage:read",
+        lambda: service.get_etl_table_lineage(table),
+        {"table": table},
+    )
+
+
+@mcp.tool()
+def search_etl_metadata(query: str, limit: int = 10) -> list[dict[str, Any]]:
+    """Search ETL pipeline, step, table, and dependency names."""
+    safe_limit = max(1, min(limit, settings.max_rows))
+    return _invoke(
+        "etl_metadata.search",
+        "catalog:read",
+        lambda: service.search_etl_metadata(query, safe_limit),
+        {"query_length": len(query), "limit": safe_limit},
+    )
+
+
 @mcp.tool()
 def analyze_sql_lineage(sql: str) -> dict[str, Any]:
     """Parse read-only SQL and extract referenced input tables and CTEs."""
@@ -346,6 +416,25 @@ def catalog_table(source: str, schema: str, table: str) -> dict[str, Any]:
         lambda: service.get_table_metadata(source, schema, table).model_dump(),
         {"source": source, "schema": schema, "table": table},
         source=source,
+    )
+
+
+
+
+@mcp.resource(
+    "etl://pipeline/{pipeline_id}",
+    title="Normalized ETL Pipeline Metadata",
+    description=(
+        "Read producer-owned ETL metadata without reparsing Pentaho or Apache Hop artifacts."
+    ),
+    mime_type="application/json",
+)
+def etl_pipeline_resource(pipeline_id: str) -> dict[str, Any]:
+    return _invoke(
+        "resource.etl_pipeline",
+        "catalog:read",
+        lambda: service.get_etl_pipeline(pipeline_id),
+        {"pipeline_id": pipeline_id},
     )
 
 
