@@ -27,6 +27,52 @@ Portfolio responsibility boundary:
 
 **Intentional scope boundary:** this server does **not** implement autonomous agent orchestration, RAG chat, or model routing. Those responsibilities belong to the other portfolio layers.
 
+## Engineering Decisions & Production Evidence
+
+### Problem
+
+如果 AI Agent 直接取得 PostgreSQL、Vertica、Airflow 或 Log backend 的原生權限，會把 **authentication、authorization、tenant isolation、SQL safety、audit 與 backend-specific behavior** 全部推給每個 client。這會造成 privilege expansion、不可一致治理與難以追蹤的 operational risk。
+
+### Key Engineering Decisions & Trade-offs
+
+| Decision | Why / Benefit | Trade-off |
+|---|---|---|
+| **MCP Tool Contract 作為統一 integration boundary** | AI client 只看標準 capability，不直接持有 backend-specific credential / API semantics | 多一層 protocol、tool schema 與 compatibility 維護成本 |
+| **Adapter Pattern 隔離 PostgreSQL / Vertica / Airflow / Logs** | Tool contract 與 backend implementation 解耦，新增資料來源不需要改 client | Adapter 必須維護各 backend 的差異、timeout 與 error normalization |
+| **Read-only by Design + SQLGlot AST + DB read-only session** | 不依賴 Prompt 約束安全；從 tool surface、SQL policy 到 database session 多層限制 write path | 有些合法但複雜 SQL 可能被保守 policy 拒絕，需明確擴充規則 |
+| **RBAC 決定 what，Tenant Policy 決定 which source** | 把 operation authorization 與 data-source boundary 分離，較容易 audit 與 reason | v0.4 tenant isolation 是 source-level，不等同 row-level RLS |
+| **OIDC/JWT + JWKS 驗證置於 MCP resource boundary** | Enterprise identity 可集中驗 signature / issuer / audience / expiry / role mapping | IdP/JWKS availability 變成 authentication dependency |
+
+### Production Failure & Recovery
+
+| Scenario | Engineering Behavior / Detection | Recovery Strategy |
+|---|---|---|
+| Malformed / write SQL | 在 database 執行前由 SQL policy 拒絕；DB session 仍維持 read-only | 修正 request 或明確擴充允許的 read-only grammar，不以繞過 policy 解決 |
+| Caller 嘗試跨 tenant source | Tenant policy 拒絕未授權 source | 修正 identity / tenant mapping；不 fallback 到 unrestricted source |
+| OIDC token / JWKS 驗證失敗 | Authentication failure 應 fail closed，不降級成 anonymous privileged access | 恢復 IdP/JWKS 或使用明確配置的 reference auth mode |
+| Vertica / PostgreSQL backend outage | 對應 tool 回傳 bounded backend failure；不改用更高權限連線 | 恢復 backend/connection，保留同一 tool contract 後重試 |
+| Airflow / Logs backend unavailable | 相關 operations/log capability degraded，但 catalog tool boundary 仍可獨立處理 | 恢復該 Adapter backend；避免把局部 outage 擴散成整個 MCP 權限放寬 |
+
+### Production Evidence
+
+| Claim | Repository Evidence |
+|---|---|
+| OIDC / RBAC / audit behavior 有 regression tests | `tests/test_auth_audit.py`, `tests/test_security.py`, `src/data_platform_mcp/security.py` |
+| MCP protocol contract 有測試 | `tests/test_mcp_protocol.py`, `tests/test_service.py` |
+| PostgreSQL / Vertica / integration boundary 有測試 | `tests/test_vertica.py`, `tests/test_integrations.py` |
+| Observability / audit correlation 有測試 | `tests/test_observability.py`, `src/data_platform_mcp/observability.py`, `src/data_platform_mcp/audit.py` |
+| Kubernetes production baseline 可驗證 | `deploy/helm/data-platform-mcp-server/`, `tests/helm-values.yaml`, `.github/workflows/ci.yml` |
+| Security gate | `.github/workflows/security.yml` |
+
+### Interview Questions This Project Can Answer
+
+- 為什麼 AI Agent 不應該直接連資料庫？
+- MCP 增加 latency 與維護成本，為什麼仍值得？
+- Read-only 安全為什麼不能只靠 system prompt？
+- RBAC 與 tenant isolation 為什麼要拆開？
+- OIDC/JWKS unavailable 時應該 fail open 還是 fail closed？
+
+
 ## Reference Integration / 參考整合
 
     Agentic DataOps Copilot
