@@ -16,6 +16,7 @@ from data_platform_mcp.models import (
     TableStatistics,
 )
 
+
 class DataPlatformService:
     def __init__(
         self,
