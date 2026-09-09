@@ -57,3 +57,5 @@ jobs:
           grep -q "kind: NetworkPolicy" rendered.yaml
           grep -q "kind: ExternalSecret" rendered.yaml
           grep -q "readOnlyRootFilesystem: true" rendered.yaml
+          grep -q "DPMCP_ETL_METADATA_DIR" rendered.yaml
+          grep -q "/var/lib/data-platform-mcp/etl-metadata" rendered.yaml
