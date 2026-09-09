@@ -16,7 +16,6 @@ from data_platform_mcp.models import (
     TableStatistics,
 )
 
-
 class DataPlatformService:
     def __init__(
         self,
@@ -93,7 +92,6 @@ class DataPlatformService:
 
     def search_runbooks(self, query: str, limit: int = 10) -> list[SearchHit]:
         return self.runbooks.search(query, limit)
-
 
     def list_etl_pipelines(self) -> list[str]:
         return self.etl_metadata.list_pipelines()
