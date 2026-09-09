@@ -17,5 +17,11 @@
 | `get_dag_status` | `operations:read` | — | latest DAG state |
 | `search_etl_logs` | `logs:read` | — | log search |
 | `search_runbooks` | `runbook:read` | — | runbook search |
+| `list_etl_pipelines` | `catalog:read` | — | producer-published ETL pipelines |
+| `get_etl_pipeline` | `catalog:read` | — | normalized ETL metadata contract |
+| `get_etl_pipeline_steps` | `catalog:read` | — | deterministic ETL step metadata |
+| `get_etl_pipeline_dependencies` | `lineage:read` | — | step/workflow dependency records |
+| `get_etl_table_lineage` | `lineage:read` | — | producer lineage + capability boundary |
+| `search_etl_metadata` | `catalog:read` | — | ETL metadata discovery |
 
-v0.4 tenant isolation applies to catalog/data-source operations. Deployments requiring tenant-specific Airflow/log/runbook segregation should use tenant-separated backends or extend the policy layer for those resources.
+v0.5 preserves v0.4 tenant isolation for catalog/data-source operations. ETL metadata artifacts are deployment-scoped; shared multi-tenant ETL metadata requires an explicit artifact policy or separated MCP deployments. Deployments requiring tenant-specific Airflow/log/runbook segregation should use tenant-separated backends or extend the policy layer for those resources.
