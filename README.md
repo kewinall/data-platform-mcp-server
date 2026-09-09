@@ -5,11 +5,41 @@
 > **📘 Interactive Project Guide / 專案互動式說明文件**  
 > [Open the single-file HTML guide](docs/data-platform-mcp-server-guide.html) — 面試官速讀、架構圖、MCP Tools、Security、OIDC/RBAC/Multi-tenancy、Kubernetes/Helm、CI/CD 與使用教學集中在同一頁。
 
-> **繁體中文**：面向 Data Engineering / DataOps 的 production-oriented Model Context Protocol (MCP) Server 參考實作，提供安全的資料平台 discovery、metadata、lineage、SQL explain、Airflow 與 log/runbook 查詢能力。
+> **繁體中文**：企業資料平台的 **Tool / Integration Layer**。這是一個 production-oriented Model Context Protocol (MCP) Server，將 PostgreSQL、Vertica、Airflow、Logs、Metadata 與 Lineage 以安全、標準化的 Tool Contract 提供給 AI Agent / IDE / MCP Host。
 >
-> **English**: A production-oriented MCP server reference for Data Engineering and DataOps, with secure catalog discovery, metadata, lineage, guarded SQL explain, Airflow operations visibility, and log/runbook search.
+> **English**: The **Tool / Integration Layer** for an enterprise data platform. This production-oriented MCP server exposes PostgreSQL, Vertica, Airflow, logs, metadata, and lineage through standardized, governed tool contracts for AI agents, IDEs, and MCP hosts.
 
 Repository 預設使用 synthetic demo data，不含任何公司/客戶資料、真實帳密或內部 URL。
+
+## Portfolio Role / 作品集角色
+
+**Primary role: Tool & Integration Platform / AI 工具與資料平台整合層**
+
+此 Repository 主要回答：**如何讓不同 AI Agent 透過標準化 MCP Protocol，安全地存取企業 Data Platform 的 Metadata、Lineage、Airflow、Logs 與 Read-only SQL 能力？**  
+This repository primarily answers: **How can heterogeneous AI clients safely access enterprise data-platform capabilities through standardized MCP tools?**
+
+Portfolio responsibility boundary:
+
+- **This repository:** canonical MCP server, tool contracts, protocol transport, catalog/data-platform adapters, tool-level auth/scope/tenant controls.
+- [Agentic DataOps Copilot](https://github.com/kewinall/agentic-dataops-copilot): reasoning and operations client that can consume this tool layer.
+- [Enterprise RAG Platform](https://github.com/kewinall/enterprise-rag-platform): knowledge ingestion, retrieval, grounding, citations, and evaluation.
+- [Multi-LLM AI Gateway](https://github.com/kewinall/multi-llm-ai-gateway): centralized model control plane.
+
+**Intentional scope boundary:** this server does **not** implement autonomous agent orchestration, RAG chat, or model routing. Those responsibilities belong to the other portfolio layers.
+
+## Reference Integration / 參考整合
+
+    Agentic DataOps Copilot
+              |
+              | MCP
+              v
+    Data Platform MCP Server
+              |
+      +-------+--------+---------+----------+
+      |       |        |         |          |
+ PostgreSQL Vertica Airflow   Logs     Metadata/Lineage
+
+Other MCP hosts such as ChatGPT, Claude, Codex, or IDE agents can connect to the same server-side tool contract.
 
 ## v0.4 Highlights
 
@@ -310,7 +340,7 @@ Helm chart .tgz asset
 - **v0.3** ✅ Vertica + metadata/lineage + AST SQL policy + RBAC/audit
 - **v0.4** ✅ Kubernetes/Helm + OIDC + multi-tenancy + OTel + External Secrets + air-gap
 
-Potential next work includes OPA/Cedar policy, OpenMetadata/DataHub, signed images/SBOM provenance, Gateway API, and GitOps.
+Potential next work should remain focused on the **tool/integration layer**, such as OPA/Cedar policy, OpenMetadata/DataHub, signed images/SBOM provenance, Gateway API, GitOps, protocol conformance, and additional read-only platform adapters. Agent orchestration and model routing are intentionally out of scope.
 
 ## Documentation
 
