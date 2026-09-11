@@ -1,159 +1,31 @@
 # Data Platform MCP Server
 
-**目前版本 / Current release: v0.5.0**
+**Current release: v0.5.0**
 
-> **📘 Interactive Project Guide / 專案互動式說明文件**  
-> [Open Live Project Guide](https://kewinall.github.io/data-platform-mcp-server/) · [Repository HTML](docs/data-platform-mcp-server-guide.html) — 面試官速讀、架構圖、MCP Tools、Security、OIDC/RBAC/Multi-tenancy、Kubernetes/Helm、CI/CD 與使用教學集中在同一頁。
+> **Interactive architecture & project overview**  
+> [Live GitHub Pages](https://kewinall.github.io/data-platform-mcp-server/) · [Repository HTML](docs/data-platform-mcp-server-guide.html)
 
-> **繁體中文**：企業資料平台的 **Tool / Integration Layer**。這是一個 production-oriented Model Context Protocol (MCP) Server，將 PostgreSQL、Vertica、Airflow、Logs、Metadata、Lineage，以及 enterprise-etl-platform 產生的 normalized ETL metadata，以安全、標準化的 Tool Contract 提供給 AI Agent / IDE / MCP Host。
->
-> **English**: The **Tool / Integration Layer** for an enterprise data platform. This production-oriented MCP server exposes PostgreSQL, Vertica, Airflow, logs, metadata, and lineage through standardized, governed tool contracts for AI agents, IDEs, and MCP hosts.
+Production-oriented **Tool / Integration Layer** for enterprise data platforms. It exposes PostgreSQL, Vertica, Airflow, logs, metadata, lineage, and normalized ETL metadata through governed Model Context Protocol (MCP) tools.
 
-Repository 預設使用 synthetic demo data，不含任何公司/客戶資料、真實帳密或內部 URL。
+Synthetic demo data is used by default. No company/customer data, real credentials, or internal URLs are required.
 
-## Portfolio Role / 作品集角色
+## Engineering Scope
 
-**Primary role: Tool & Integration Platform / AI 工具與資料平台整合層**
+This repository owns the **canonical MCP access layer**:
 
-此 Repository 主要回答：**如何讓不同 AI Agent 透過標準化 MCP Protocol，安全地存取企業 Data Platform 的 Metadata、Lineage、Airflow、Logs 與 Read-only SQL 能力？**  
-This repository primarily answers: **How can heterogeneous AI clients safely access enterprise data-platform capabilities through standardized MCP tools?**
+- MCP protocol transport and tool contracts
+- PostgreSQL and Vertica catalog access
+- read-only SQL guardrails
+- Airflow and log integrations
+- metadata and lineage access
+- OIDC/JWT authentication
+- RBAC and per-tool scopes
+- tenant-aware source isolation
+- structured audit events
+- OpenTelemetry observability
+- normalized ETL metadata consumption from `enterprise-etl-platform`
 
-Portfolio responsibility boundary:
-
-- **This repository:** canonical MCP server, tool contracts, protocol transport, catalog/data-platform adapters, producer-owned ETL metadata access, tool-level auth/scope/tenant controls.
-- [Enterprise ETL Platform](https://github.com/kewinall/enterprise-etl-platform): Pentaho/Hop parser, normalized ETL metadata, migration analysis, lineage truth, runtime and delivery lifecycle.
-- [Agentic DataOps Copilot](https://github.com/kewinall/agentic-dataops-copilot): reasoning and operations client that can consume this tool layer.
-- [Enterprise RAG Platform](https://github.com/kewinall/enterprise-rag-platform): knowledge ingestion, retrieval, grounding, citations, and evaluation.
-- [Multi-LLM AI Gateway](https://github.com/kewinall/multi-llm-ai-gateway): centralized model control plane.
-
-**Intentional scope boundary:** this server does **not** implement autonomous agent orchestration, RAG chat, or model routing. Those responsibilities belong to the other portfolio layers.
-
-## Engineering Decisions & Production Evidence
-
-### Problem
-
-如果 AI Agent 直接取得 PostgreSQL、Vertica、Airflow 或 Log backend 的原生權限，會把 **authentication、authorization、tenant isolation、SQL safety、audit 與 backend-specific behavior** 全部推給每個 client。這會造成 privilege expansion、不可一致治理與難以追蹤的 operational risk。
-
-### Key Engineering Decisions & Trade-offs
-
-| Decision | Why / Benefit | Trade-off |
-|---|---|---|
-| **MCP Tool Contract 作為統一 integration boundary** | AI client 只看標準 capability，不直接持有 backend-specific credential / API semantics | 多一層 protocol、tool schema 與 compatibility 維護成本 |
-| **Adapter Pattern 隔離 PostgreSQL / Vertica / Airflow / Logs** | Tool contract 與 backend implementation 解耦，新增資料來源不需要改 client | Adapter 必須維護各 backend 的差異、timeout 與 error normalization |
-| **Read-only by Design + SQLGlot AST + DB read-only session** | 不依賴 Prompt 約束安全；從 tool surface、SQL policy 到 database session 多層限制 write path | 有些合法但複雜 SQL 可能被保守 policy 拒絕，需明確擴充規則 |
-| **RBAC 決定 what，Tenant Policy 決定 which source** | 把 operation authorization 與 data-source boundary 分離，較容易 audit 與 reason | v0.4 tenant isolation 是 source-level，不等同 row-level RLS |
-| **OIDC/JWT + JWKS 驗證置於 MCP resource boundary** | Enterprise identity 可集中驗 signature / issuer / audience / expiry / role mapping | IdP/JWKS availability 變成 authentication dependency |
-| **ETL metadata 採 producer-owned contract** | ETL parser/lineage truth 只存在 enterprise-etl-platform，MCP 不重做 parser | 需要維護 contract schema/version compatibility |
-| **ETL metadata volume read-only mount** | MCP deployment 只能消費已發布 artifact，避免 access layer 改寫 truth | artifact publishing/synchronization 必須由外部 delivery process 管理 |
-
-### Production Failure & Recovery
-
-| Scenario | Engineering Behavior / Detection | Recovery Strategy |
-|---|---|---|
-| Malformed / write SQL | 在 database 執行前由 SQL policy 拒絕；DB session 仍維持 read-only | 修正 request 或明確擴充允許的 read-only grammar，不以繞過 policy 解決 |
-| Caller 嘗試跨 tenant source | Tenant policy 拒絕未授權 source | 修正 identity / tenant mapping；不 fallback 到 unrestricted source |
-| OIDC token / JWKS 驗證失敗 | Authentication failure 應 fail closed，不降級成 anonymous privileged access | 恢復 IdP/JWKS 或使用明確配置的 reference auth mode |
-| Vertica / PostgreSQL backend outage | 對應 tool 回傳 bounded backend failure；不改用更高權限連線 | 恢復 backend/connection，保留同一 tool contract 後重試 |
-| Airflow / Logs backend unavailable | 相關 operations/log capability degraded，但 catalog tool boundary 仍可獨立處理 | 恢復該 Adapter backend；避免把局部 outage 擴散成整個 MCP 權限放寬 |
-| ETL metadata JSON invalid / schema unsupported | Adapter fail closed；不 fallback 成 AI 推論 | 由 ETL producer 重新發布合法 artifact |
-| ETL metadata 缺少 column lineage | capability boundary 隨結果回傳 | 改善 producer parser；MCP 不自行補 edge |
-
-### Production Evidence
-
-| Claim | Repository Evidence |
-|---|---|
-| OIDC / RBAC / audit behavior 有 regression tests | `tests/test_auth_audit.py`, `tests/test_security.py`, `src/data_platform_mcp/security.py` |
-| MCP protocol contract 有測試 | `tests/test_mcp_protocol.py`, `tests/test_service.py` |
-| PostgreSQL / Vertica / integration boundary 有測試 | `tests/test_vertica.py`, `tests/test_integrations.py` |
-| Observability / audit correlation 有測試 | `tests/test_observability.py`, `src/data_platform_mcp/observability.py`, `src/data_platform_mcp/audit.py` |
-| Kubernetes production baseline 可驗證 | `deploy/helm/data-platform-mcp-server/`, `tests/helm-values.yaml`, `.github/workflows/ci.yml` |
-| Security gate | `.github/workflows/security.yml` |
-| ETL metadata contract / classification | `src/data_platform_mcp/adapters/etl_metadata.py`, `tests/test_etl_metadata.py` |
-| MCP ETL tool/resource protocol | `tests/test_mcp_protocol.py`, `docs/etl-metadata-integration.md` |
-| Read-only Kubernetes artifact mount | `deploy/helm/data-platform-mcp-server/templates/deployment.yaml`, `tests/helm-values.yaml` |
-
-### Interview Questions This Project Can Answer
-
-- 為什麼 AI Agent 不應該直接連資料庫？
-- MCP 增加 latency 與維護成本，為什麼仍值得？
-- Read-only 安全為什麼不能只靠 system prompt？
-- RBAC 與 tenant isolation 為什麼要拆開？
-- OIDC/JWKS unavailable 時應該 fail open 還是 fail closed？
-- 為什麼 ETL metadata parser 不應該複製到 MCP Server？
-- structural lineage、inferred lineage 與 AI interpretation 為什麼要原樣保留？
-
-
-## Reference Integration / 參考整合
-
-    Agentic DataOps Copilot
-              |
-              | MCP
-              v
-    Data Platform MCP Server
-              |
-      +-------+--------+---------+----------+
-      |       |        |         |          |
- PostgreSQL Vertica Airflow   Logs     Metadata/Lineage
-
-Other MCP hosts such as ChatGPT, Claude, Codex, or IDE agents can connect to the same server-side tool contract.
-
-## v0.5 Highlights
-
-### ETL Metadata / Lineage Access
-- normalized ETL metadata contract from enterprise-etl-platform
-- filesystem JSON + synthetic demo adapters
-- producer authority preserved
-- structural / inferred-deterministic classifications preserved
-- explicit capability-boundary propagation
-- read-only Kubernetes PVC mount
-
-### New MCP Tools
-- list_etl_pipelines
-- get_etl_pipeline
-- get_etl_pipeline_steps
-- get_etl_pipeline_dependencies
-- get_etl_table_lineage
-- search_etl_metadata
-- etl://pipeline/{pipeline_id} resource
-
-The MCP server does not parse Pentaho KTR/KJB or Apache Hop artifacts and does not perform migration correctness decisions.
-
-## v0.4 Highlights
-
-### Data Platform
-- PostgreSQL + Vertica catalog adapters
-- multi-source composite catalog
-- metadata / projection metadata
-- catalog-backed lineage
-- SQLGlot AST SQL lineage
-- read-only SQL policy
-- Airflow 3 `/api/v2`
-- OpenSearch / Loki log search
-
-### Identity / Security
-- MCP Python SDK v2
-- Streamable HTTP bearer authentication
-- static token reference mode
-- OIDC/JWT + JWKS verification
-- Keycloak / Microsoft Entra ID examples
-- roles: `reader`, `analyst`, `operator`, `admin`
-- per-tool scopes
-- tenant-aware catalog source isolation
-- structured audit JSONL
-- SQL fingerprints instead of raw SQL audit text
-
-### Production Delivery
-- Kubernetes Helm chart
-- Restricted-style Pod Security defaults
-- NetworkPolicy
-- PodDisruptionBudget
-- optional HPA
-- External Secrets Operator v1
-- Azure Key Vault Workload Identity example
-- OpenTelemetry traces + metrics over OTLP/HTTP
-- air-gapped bundle builder
-- CI/Security-gated automatic Git tag + GitHub Release
-- packaged Helm chart attached to releases
+It intentionally does not implement autonomous agent orchestration, RAG chat, model routing, or ETL parsing/migration truth.
 
 ## Architecture
 
@@ -182,62 +54,81 @@ ChatGPT / Claude / Codex / MCP Host
        +------+-----+     +----------------+
        |            |     |                |
  PostgreSQL      Vertica Airflow       Logs/Runbooks
-       |
- Composite multi-source routing
-       |
- Metadata / Lineage / SQL Policy
 ```
 
-Kubernetes deployment:
+## Core Capabilities
+
+- MCP SDK v2 / Streamable HTTP
+- PostgreSQL + Vertica catalog adapters
+- multi-source catalog abstraction
+- metadata and table/projection inspection
+- catalog-backed and SQL AST lineage
+- SQLGlot-based read-only SQL policy
+- database read-only session enforcement
+- Airflow 3 `/api/v2` integration
+- OpenSearch / Loki log search
+- OIDC/JWT + JWKS validation
+- roles: `reader`, `analyst`, `operator`, `admin`
+- per-tool scopes
+- tenant-aware source isolation
+- structured audit JSONL
+- Kubernetes Helm deployment
+- NetworkPolicy / PDB / optional HPA
+- External Secrets examples
+- OpenTelemetry traces + metrics
+- air-gapped bundle support
+
+## ETL Metadata Contract
+
+`enterprise-etl-platform` is the producer of ETL metadata and lineage truth. This server only consumes published normalized artifacts.
 
 ```text
-External Client / MCP Host
-          |
-          v
-   Kubernetes Service
-          |
-   NetworkPolicy
-          |
-  MCP Server Pods (2+)
-    |     |       |
-    |     |       +--> OTLP Collector
-    |     +----------> OIDC / JWKS
-    +----------------> DB / Airflow / Logs
-
-External Secrets Operator
-          |
-   Vault / Key Vault
-          |
-   Kubernetes Secret
-          |
-       MCP Pods
+Enterprise ETL Platform
+  parser / migration / lineage truth
+              |
+              | normalized artifact
+              v
+Data Platform MCP Server
+  governed read-only access
+              |
+              v
+AI Agent / IDE / MCP Host
 ```
 
-## MCP Tools
+The MCP layer preserves producer classifications such as `structural`, `inferred-deterministic`, and capability boundaries. It does not invent missing lineage.
 
-| Tool | Scope | Purpose |
+## Key Engineering Decisions
+
+| Decision | Rationale | Trade-off |
 |---|---|---|
-| `health` | `platform:read` | health/version |
-| `whoami` | `platform:read` | identity, role, tenant, scopes |
-| `list_data_sources` | `catalog:read` | tenant-visible sources |
-| `list_schemas` | `catalog:read` | schemas |
-| `list_tables` | `catalog:read` | tables/views |
-| `describe_table` | `catalog:read` | column metadata |
-| `table_statistics` | `catalog:read` | lightweight statistics |
-| `get_table_metadata` | `catalog:read` | owner/type/projections |
-| `get_table_lineage` | `lineage:read` | catalog lineage |
-| `analyze_sql_lineage` | `lineage:read` | SQL AST lineage |
-| `explain_sql` | `sql:explain` | guarded EXPLAIN |
-| `list_dags` | `operations:read` | DAG discovery |
-| `get_dag_status` | `operations:read` | latest DAG state |
-| `search_etl_logs` | `logs:read` | ETL log search |
-| `search_runbooks` | `runbook:read` | troubleshooting knowledge |
-| `list_etl_pipelines` | `catalog:read` | ETL pipeline discovery |
-| `get_etl_pipeline` | `catalog:read` | normalized producer contract |
-| `get_etl_pipeline_steps` | `catalog:read` | deterministic steps |
-| `get_etl_pipeline_dependencies` | `lineage:read` | workflow/step dependencies |
-| `get_etl_table_lineage` | `lineage:read` | producer lineage + boundary |
-| `search_etl_metadata` | `catalog:read` | ETL metadata search |
+| MCP Tool Contract as integration boundary | Clients use governed capabilities instead of raw backend credentials/APIs | Additional protocol/schema compatibility work |
+| Adapter Pattern for platform backends | Tool contracts stay stable while backends vary | Backend-specific behavior still requires adapter maintenance |
+| Read-only by design + AST policy + DB session | Safety is enforced below the prompt layer | Conservative policy can reject some complex valid SQL |
+| RBAC for what, tenant policy for which source | Separates operation authorization from data-source isolation | Source-level tenant isolation is not row-level RLS |
+| OIDC/JWT validation at resource boundary | Centralizes identity and role mapping | IdP/JWKS availability becomes an auth dependency |
+| Producer-owned ETL metadata contract | Prevents parser/lineage truth from being duplicated | Requires schema/version compatibility management |
+
+## Failure Semantics
+
+- malformed or mutation-capable SQL is rejected before database execution
+- cross-tenant source access is denied instead of falling back to unrestricted access
+- failed OIDC/JWKS verification fails closed
+- backend outages return bounded tool failures without escalating privileges
+- invalid ETL metadata artifacts fail closed
+- missing lineage remains missing; the MCP server does not fabricate edges
+
+## Production Evidence
+
+| Claim | Repository Evidence |
+|---|---|
+| OIDC / RBAC / audit regression | `tests/test_auth_audit.py`, `tests/test_security.py`, `src/data_platform_mcp/security.py` |
+| MCP protocol contract | `tests/test_mcp_protocol.py`, `tests/test_service.py` |
+| PostgreSQL / Vertica boundary | `tests/test_vertica.py`, `tests/test_integrations.py` |
+| Observability / audit correlation | `tests/test_observability.py`, `src/data_platform_mcp/observability.py`, `src/data_platform_mcp/audit.py` |
+| Kubernetes baseline | `deploy/helm/data-platform-mcp-server/`, `tests/helm-values.yaml`, `.github/workflows/ci.yml` |
+| Security gate | `.github/workflows/security.yml` |
+| ETL metadata contract | `src/data_platform_mcp/adapters/etl_metadata.py`, `tests/test_etl_metadata.py` |
+| ETL MCP integration | `tests/test_mcp_protocol.py`, `docs/etl-metadata-integration.md` |
 
 ## Quick Start
 
@@ -262,186 +153,36 @@ HTTP:
 DPMCP_TRANSPORT=streamable-http data-platform-mcp
 ```
 
-Endpoint:
+Endpoint: `http://127.0.0.1:8000/mcp`
 
-```text
-http://127.0.0.1:8000/mcp
-```
+## Selected Tools
 
-## Multi-source PostgreSQL + Vertica
-
-```bash
-export DPMCP_MODE=multi
-export DPMCP_POSTGRES_DSN='postgresql://readonly_user:change-me@postgres:5432/analytics'
-export DPMCP_VERTICA_DSN='vertica://readonly_user:change-me@vertica:5433/warehouse?tlsmode=require'
-data-platform-mcp
-```
-
-## OIDC + Tenant-aware RBAC
-
-```bash
-export DPMCP_TRANSPORT=streamable-http
-export DPMCP_AUTH_ENABLED=true
-export DPMCP_AUTH_MODE=oidc
-export DPMCP_AUTH_ISSUER_URL='https://idp.example.com/realms/data-platform'
-export DPMCP_AUTH_RESOURCE_URL='https://mcp.example.com/mcp'
-export DPMCP_OIDC_JWKS_URL='https://idp.example.com/realms/data-platform/protocol/openid-connect/certs'
-export DPMCP_OIDC_AUDIENCE='data-platform-mcp'
-export DPMCP_OIDC_ROLE_CLAIM='realm_access.roles'
-export DPMCP_OIDC_TENANT_CLAIM='tenant'
-export DPMCP_OIDC_ROLE_MAP_JSON='{"data-platform-analyst":"analyst"}'
-
-export DPMCP_TENANT_ENABLED=true
-export DPMCP_TENANT_ALLOWED_SOURCES_JSON='{"tenant-a":["postgres"],"tenant-b":["vertica"]}'
-
-data-platform-mcp
-```
-
-Role answers **what** the caller may do; tenant policy answers **which catalog source** the caller may access.
-
-See `docs/oidc.md`.
-
-## OpenTelemetry
-
-```bash
-export DPMCP_OTEL_ENABLED=true
-export DPMCP_OTEL_EXPORTER_OTLP_ENDPOINT='http://otel-collector:4318'
-export DPMCP_DEPLOYMENT_ENVIRONMENT=prod
-```
-
-Signals:
-
-```text
-Traces:
-  dpmcp.<action>
-
-Metrics:
-  dpmcp.invocations
-  dpmcp.invocation.duration
-```
-
-Audit events include the OpenTelemetry trace ID when available.
-
-See `docs/observability.md`.
-
-## Kubernetes / Helm
-
-```bash
-kubectl apply -f examples/kubernetes/namespace-restricted.yaml
-
-helm upgrade --install dpmcp   deploy/helm/data-platform-mcp-server   --namespace data-platform-mcp
-```
-
-Default chart security posture:
-
-```text
-runAsNonRoot                true
-runAsUser                   10001
-readOnlyRootFilesystem      true
-allowPrivilegeEscalation    false
-capabilities                drop ALL
-seccompProfile              RuntimeDefault
-ServiceAccount token        disabled
-NetworkPolicy               enabled
-non-DNS egress              denied by default
-```
-
-See `docs/deployment.md`.
-
-## External Secrets
-
-The Helm chart can consume either an existing Kubernetes Secret or create one through External Secrets Operator.
-
-Azure Key Vault Workload Identity example:
-
-```text
-examples/external-secrets/azure-key-vault-secretstore.yaml
-```
-
-## Air-gapped Bundle
-
-On an internet-connected staging machine:
-
-```bash
-make airgap
-```
-
-Output:
-
-```text
-dist/data-platform-mcp-server-0.5.0-airgap.tar.gz
-```
-
-It contains a Python wheelhouse, container image tar, Helm package, documentation, and SHA256 checksums.
-
-See `docs/airgap.md`.
-
-## CI / Security / Release
-
-```text
-CI
-├── Python 3.11
-├── Python 3.12
-├── Ruff
-├── pytest
-├── compileall
-├── Docker build
-├── shell syntax
-├── Helm lint
-└── Helm template
-
-Security
-├── pip-audit
-├── Trivy filesystem
-└── Trivy rendered Kubernetes config
-
-Both green
-   ↓
-Git Tag
-   ↓
-GitHub Release
-   ↓
-Helm chart .tgz asset
-```
-
-## Security Boundaries
-
-1. No destructive MCP tool exists.
-2. SQLGlot AST policy rejects write/DDL/multi-statement SQL.
-3. PostgreSQL and Vertica also use database/session read-only controls.
-4. OIDC JWT verification validates signature/issuer/audience/expiry/subject.
-5. Unknown roles are rejected.
-6. Tenant isolation is source-level in v0.4; it is not row-level RLS.
-7. Tokens, passwords, DSNs, and raw SQL are excluded from normal audit/telemetry metadata.
-8. Kubernetes egress is deny-by-default except DNS in the Helm defaults.
-9. Backend least privilege remains mandatory.
-
-## Roadmap
-
-- **v0.1** ✅ MCP foundation + PostgreSQL
-- **v0.2** ✅ Airflow 3 + OpenSearch/Loki + MCP resources/prompts
-- **v0.3** ✅ Vertica + metadata/lineage + AST SQL policy + RBAC/audit
-- **v0.4** ✅ Kubernetes/Helm + OIDC + multi-tenancy + OTel + External Secrets + air-gap
-- **v0.5** ✅ producer-owned ETL metadata / lineage access + read-only artifact mount
-
-Potential next work should remain focused on the **tool/integration layer**, such as OPA/Cedar policy, OpenMetadata/DataHub, signed images/SBOM provenance, Gateway API, GitOps, protocol conformance, and additional read-only platform adapters. Agent orchestration and model routing are intentionally out of scope.
+| Tool | Scope | Purpose |
+|---|---|---|
+| `health` | `platform:read` | health/version |
+| `whoami` | `platform:read` | identity, role, tenant, scopes |
+| `list_data_sources` | `catalog:read` | tenant-visible sources |
+| `describe_table` | `catalog:read` | column metadata |
+| `get_table_lineage` | `lineage:read` | catalog lineage |
+| `analyze_sql_lineage` | `lineage:read` | SQL AST lineage |
+| `explain_sql` | `sql:explain` | guarded EXPLAIN |
+| `list_dags` | `operations:read` | Airflow DAG discovery |
+| `search_etl_logs` | `logs:read` | ETL log search |
+| `list_etl_pipelines` | `catalog:read` | normalized ETL pipeline discovery |
+| `get_etl_table_lineage` | `lineage:read` | producer lineage + capability boundary |
 
 ## Documentation
 
-- `docs/architecture.md`
-- `docs/installation.md`
-- `docs/integrations.md`
-- `docs/security.md`
-- `docs/tool-catalog.md`
-- `docs/deployment.md`
-- `docs/oidc.md`
-- `docs/observability.md`
-- `docs/airgap.md`
-- `docs/v0.4.md`
-- `docs/etl-metadata-integration.md`
-- `docs/v0.5.md`
-- `CHANGELOG.md`
+See `docs/` for OIDC, MCP protocol, ETL metadata integration, deployment, observability, security, and operational guidance.
+
+## Portfolio Boundary
+
+- **Data Platform MCP Server:** standardized governed tool/integration access
+- **Enterprise ETL Platform:** ETL metadata producer, migration truth and lineage truth
+- **Agentic DataOps Copilot:** operational reasoning client
+- **Enterprise RAG Platform:** enterprise knowledge and retrieval
+- **Multi-LLM AI Gateway:** model control plane
 
 ## License
 
-MIT License. See `LICENSE`.
+MIT
